@@ -1,0 +1,32 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+!frontend/.env.local.example
+
+# Python
+.venv/
+pycache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Next.js / Node.js
+node_modules/
+.next/
+out/
+frontend/.env.local
+*.tsbuildinfo
+
+# Generated course resources
+temp/
+
+# Logs
+*.log
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
