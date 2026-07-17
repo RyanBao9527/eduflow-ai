@@ -2,11 +2,11 @@
 
 # EduFlow AI
 
-**面向教师、课程研发人员与培训团队的 AI 课程研发工作台。**
+### AI-powered course development platform
 
-把零散的课程想法整理成结构化需求，并逐步推进到教案、讲义、课件、练习与完整课程包。
+将课程想法转化为结构化 AI Course Blueprint，并在可编辑的 Course Workspace 中持续管理和完善。
 
-![Version](https://img.shields.io/badge/version-v0.2.1-3157d5)
+[![Version](https://img.shields.io/badge/version-v0.3.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.3.0)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,129 +14,170 @@
 </div>
 
 > [!NOTE]
-> EduFlow AI 当前处于早期产品验证阶段。五步需求向导、AI Course Blueprint 与本地 Course Workspace 已形成闭环；跨设备数据库持久化、教学资源生成与导出仍在 Roadmap 中。
+> **Current Version: v0.3.0 — Course Workspace release.** 课程需求采集、AI 课程蓝图生成、本地项目保存、编辑与再次打开已形成完整闭环。
 
-## 产品背景
+## Product Positioning
 
-课程研发通常分散在文档、表格、演示文稿和即时沟通中。教师与课程团队需要反复整理教学目标、学员画像、课时规划、教学风格和资源清单，随后再把相同背景信息复制到不同工具中生产内容。
+EduFlow AI 是面向教师、课程研发人员和培训团队的 AI 课程研发平台。它把分散在文档、表格和对话中的课程需求整理为稳定、可扩展的课程结构，让 AI 生成结果不再是一次性文本，而是可以持续编辑和扩展的课程项目资产。
 
-EduFlow AI 希望把这条链路收拢到一个统一工作台：先用结构化流程澄清课程需求，再由 AI 协助生成、迭代和交付课程资源。产品强调三个原则：
+### 解决的问题
 
-- **结构先于生成**：先明确课程目标和约束，再进入内容生产。
-- **过程持续可见**：课程状态、资源进度和交付记录集中管理。
-- **教师保持控制**：AI 提供研发加速，最终教学决策仍由使用者掌握。
+- **课程需求缺少结构**：教学目标、学员画像、课时安排和资源需求往往散落在不同工具中。
+- **AI 输出难以持续使用**：一次性生成的大纲缺少稳定 ID、项目状态和后续编辑入口。
+- **长课程生成成本不稳定**：超大响应容易重复、截断，并消耗不必要的 Token。
+- **模型与业务容易耦合**：直接绑定单一模型会增加后续效果和成本比较的改造成本。
 
-## 核心功能
+### 当前工作流
+
+```text
+Course Wizard
+→ AI Course Blueprint
+→ Save as CourseProject
+→ Course Workspace
+→ Edit, save and reopen from Dashboard
+```
+
+## Features
 
 | 能力 | 当前实现 |
 | --- | --- |
-| 课程研发 Dashboard | 当前设备上的课程项目列表、状态统计与继续操作入口 |
-| 五步课程创建向导 | 基础信息、目标学员、课程规划与教学风格、后续资源规划、最终确认 |
-| 结构化需求校验 | React Hook Form 与 Zod 驱动的分步校验和错误定位 |
-| 版本化本地项目 | 使用 `schemaVersion: "1.0"` 保存多个草稿、蓝图与人工编辑结果 |
-| Course Workspace | 保存并再次打开课程项目，编辑标题、目标、模块名称和课时文本 |
-| AI Course Blueprint | 按课程规模生成完整蓝图或模块、阶段、关键课时与后续资源规划 |
-| 模型无关后端 | 统一 LLM Provider 接口，当前接入 DeepSeek，模型信息完全配置化 |
-| 结构化输出保障 | JSON Output、Pydantic 校验、重复课时检查、截断保护与一次受控重试 |
-| 遗留数据迁移 | 将旧 localStorage 草稿与 sessionStorage 蓝图安全迁移到 CourseProject Store |
-| API 基础设施 | FastAPI 应用工厂、环境配置、CORS、健康检查与课程生成接口 |
-| 工程质量 | Vitest、Testing Library、Pytest、ESLint 与生产构建检查 |
+| Course Creation Wizard | 五步收集课程背景、目标学员、课程规模、教学风格和后续资源规划 |
+| AI Course Blueprint | 1–20 课时生成详细蓝图，21–50 课时生成模块、阶段、完整索引与关键课时 |
+| Structured AI Output | Prompt v3、JSON Output、Pydantic 校验、重复课时检查和截断保护 |
+| Model-agnostic LLM Layer | 统一 LLM Provider 接口，当前接入 DeepSeek，模型信息由环境变量配置 |
+| CourseProject | 使用稳定 UUID、`schemaVersion`、状态和生成元数据封装课程资产 |
+| Local Persistence | 多个课程项目保存到 localStorage，并兼容迁移旧草稿与 session 蓝图 |
+| Course Workspace | 编辑课程标题、总体目标、模块名称、课时标题和课时描述 |
+| Dashboard Management | 展示本地课程项目、状态、更新时间和对应的继续操作入口 |
+| Data-loss Protection | 自动保存、显式 Workspace 保存、未保存离开提醒和存储异常回退 |
+| Engineering Quality | Vitest、Testing Library、Pytest、ESLint 和 Next.js production build |
 
-## 产品预览
+## Product Preview
 
-截图将在后续版本随真实产品流程持续补充。建议使用 16:9 桌面截图，并统一存放在 `assets/screenshots/`。
+截图将在后续版本随真实产品流程持续补充，并统一存放在 `assets/screenshots/`。
 
 | Dashboard | Course Creation Wizard |
 | :---: | :---: |
-| **截图占位**<br><sub>`assets/screenshots/dashboard.png`</sub> | **截图占位**<br><sub>`assets/screenshots/course-wizard.png`</sub> |
+| **Screenshot placeholder**<br><sub>`assets/screenshots/dashboard.png`</sub> | **Screenshot placeholder**<br><sub>`assets/screenshots/course-wizard.png`</sub> |
 
-| Course Blueprint | Course Workspace |
+| AI Course Blueprint | Course Workspace |
 | :---: | :---: |
-| **截图占位**<br><sub>`assets/screenshots/course-blueprint.png`</sub> | **截图占位**<br><sub>`assets/screenshots/course-workspace.png`</sub> |
+| **Screenshot placeholder**<br><sub>`assets/screenshots/course-blueprint.png`</sub> | **Screenshot placeholder**<br><sub>`assets/screenshots/course-workspace.png`</sub> |
 
-## 技术架构
+## Architecture
 
 ```mermaid
 flowchart LR
-    U["教师 / 课程研发团队"] --> W["Next.js Web App"]
+    U["Teacher / Course Designer"] --> W["Next.js Web App"]
     W --> D["Dashboard"]
     W --> C["Course Creation Wizard"]
+    W --> R["Blueprint Result"]
     W --> CW["Course Workspace"]
     C --> V["React Hook Form + Zod"]
-    C --> L["Versioned CourseProject Store"]
-    D --> L
-    CW --> L
+    D --> P["Versioned CourseProject Store"]
+    C --> P
+    R --> P
+    CW --> P
     W --> A["FastAPI Backend"]
-    A --> P["Pydantic Settings"]
-    A --> H["Health API"]
     A --> S["Course Generation Service"]
     S --> I["LLM Provider Interface"]
-    I --> M["Configured Provider"]
-    M --> DS["DeepSeek"]
-    I -. "Future" .-> O["OpenAI / Gemini / Anthropic"]
-    A -. "Future" .-> E["Course Resource Exporters"]
+    I --> DS["DeepSeek Provider"]
+    I -. "Future providers" .-> F["OpenAI / Gemini / Anthropic"]
 ```
 
-当前版本采用前后端分离结构：Next.js 承担产品界面、版本化本地课程项目和 Workspace 编辑体验；FastAPI 负责课程蓝图 Prompt、模型调用和结构校验。课程业务只依赖统一结构化输出接口，不绑定具体模型供应商。图中的虚线能力属于后续版本规划。
+Next.js 负责课程向导、结果预览、Dashboard、Workspace 与浏览器本地持久化；FastAPI 负责课程生成业务、Prompt、模型调用和结构校验。课程业务只依赖统一的结构化 LLM 接口，不直接绑定 DeepSeek。
 
-## 技术栈
-
-| 层级 | 技术 |
-| --- | --- |
-| Web Framework | Next.js 16、React 19、App Router、TypeScript |
-| UI System | Tailwind CSS 4、shadcn/ui、Radix UI、Lucide Icons |
-| Form & Validation | React Hook Form、Zod |
-| Frontend Testing | Vitest、Testing Library、jsdom |
-| Backend | FastAPI、Uvicorn、Pydantic、Pydantic Settings |
-| Backend Testing | Pytest、HTTPX |
-| AI Integration | Model-agnostic Provider Protocol、DeepSeek、structured JSON output |
-| Local Persistence | Browser localStorage、sessionStorage |
-| Package Management | pnpm、Python venv / pip |
-| Development Runtime | Next.js Webpack dev server（规避当前 Turbopack HMR 稳定性问题） |
-
-## 项目结构
+### CourseProject 数据边界
 
 ```text
-EduFlow AI/
-├── frontend/
-│   ├── app/                       # Next.js 路由与页面
-│   ├── components/                # 通用布局与 UI 组件
-│   ├── features/
-│   │   ├── course-wizard/         # 课程创建向导、校验与草稿逻辑
-│   │   ├── course-generation/     # AI 请求、结果 Schema、会话存储与蓝图视图
-│   │   ├── course-workspace/      # CourseProject 存储、迁移与可编辑工作台
-│   │   └── dashboard/             # 工作台与课程摘要
-│   ├── tests/                     # 前端单元与交互测试
-│   └── types/                     # 共享 TypeScript 类型
-├── backend/
-│   ├── models/                    # Pydantic 数据模型
-│   ├── routers/                   # FastAPI 路由
-│   ├── services/                  # 课程生成服务与 LLM Provider 抽象
-│   ├── prompts/                   # 版本化 Course Blueprint Prompt
-│   └── exporters/                 # 课程资源导出模块预留
-├── tests/backend/                 # 后端测试
-├── assets/                        # 项目截图与展示资源
-├── temp/                          # 本地生成文件（不会提交）
-├── .env.example                   # 后端环境变量模板
-└── requirements.txt               # Python 依赖
+CourseProject
+├── schemaVersion: "1.0"
+├── id / status / timestamps
+├── courseBrief
+├── coursePlan
+└── generation metadata
 ```
 
-## 本地运行
+MVP 不使用数据库。CourseProject repository 隔离了存储细节，后续接入持久化 API 时可以保留 Workspace 组件和稳定数据结构。
 
-### 环境要求
+## Tech Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | Next.js 16, React 19, App Router, TypeScript |
+| UI | Tailwind CSS 4, shadcn/ui, Radix UI, Lucide Icons |
+| Forms & Validation | React Hook Form, Zod |
+| Backend | FastAPI, Uvicorn, Pydantic, Pydantic Settings |
+| AI Integration | Model-agnostic Provider Protocol, DeepSeek, structured JSON output |
+| Persistence | Browser localStorage and sessionStorage compatibility fallback |
+| Testing | Vitest, Testing Library, jsdom, Pytest, HTTPX |
+| Tooling | pnpm, Python venv, ESLint, Next.js Webpack development server |
+
+## Current Version
+
+### v0.3.0 — Course Workspace
+
+v0.3.0 将 AI 生成结果从当前标签页中的只读蓝图升级为可长期保存、再次打开和人工编辑的本地课程项目。
+
+Highlights:
+
+- Versioned CourseProject architecture.
+- Local course persistence and legacy data migration.
+- Editable Course Workspace with explicit save and dirty-state protection.
+- Dashboard course project management.
+- 38 frontend tests and 22 backend regression tests passing at release validation.
+
+当前边界：不包含数据库、登录、RAG、Agent、教学资源正文生成或文件导出。
+
+## Roadmap
+
+### v0.1.0 — Foundation
+
+- Next.js + FastAPI.
+- Course Wizard.
+- Basic frontend and backend architecture.
+
+### v0.2.0 — AI Course Blueprint
+
+- LLM Provider abstraction.
+- DeepSeek integration.
+- Structured course generation.
+
+### v0.2.1 — Resource Planning
+
+- Resource planning model.
+- Prompt v3.
+- Course-level resource purpose and scope planning.
+
+### v0.3.0 — Course Workspace
+
+- CourseProject architecture.
+- Local persistence.
+- Editable Course Workspace.
+- Dashboard project management.
+
+### Next
+
+- **Sprint 5 — AI Resource Generation:** 教案、PPT、讲义、练习和测验生成。
+- **Sprint 6 — Export Center:** 集中管理和导出课程资源。
+- **Sprint 7 — Knowledge Base / RAG:** 知识检索、来源约束和引用增强。
+
+## Local Development
+
+### Requirements
 
 - Node.js 20.9+
 - pnpm 11 或兼容版本
 - Python 3.11+
 
-### 1. 克隆项目
+### Clone
 
 ```bash
 git clone https://github.com/RyanBao9527/eduflow-ai.git
 cd eduflow-ai
 ```
 
-### 2. 启动前端
+### Frontend
 
 ```bash
 cd frontend
@@ -147,12 +188,12 @@ pnpm dev
 
 前端默认运行在 [http://localhost:3000](http://localhost:3000)：
 
-- Dashboard：`http://localhost:3000/dashboard`
-- 新建课程：`http://localhost:3000/courses/new`
-- 课程蓝图：`http://localhost:3000/courses/result?projectId={id}`（需先完成生成）
-- 课程工作台：`http://localhost:3000/courses/{id}`（需先保存课程项目）
+- Dashboard：`/dashboard`
+- 新建课程：`/courses/new`
+- 课程蓝图：`/courses/result?projectId={id}`
+- Course Workspace：`/courses/{id}`
 
-### 3. 启动后端
+### Backend
 
 在项目根目录执行：
 
@@ -164,79 +205,72 @@ python -m pip install -r requirements.txt
 python -m uvicorn backend.main:app --reload --port 8000
 ```
 
-后端服务：
+- Health check：[http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- OpenAPI docs：[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-- 健康检查：[http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
-- OpenAPI 文档：[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+### Environment Variables
 
-## 环境变量
+不要提交真实的 `.env` 或 `frontend/.env.local`。
 
-不要提交真实的 `.env` 或 `frontend/.env.local`。仓库仅保留可安全复制的示例文件。
+Backend `.env`：
 
-### Backend · `.env`
+| Variable | Purpose |
+| --- | --- |
+| `APP_NAME` / `APP_ENVIRONMENT` | FastAPI application configuration |
+| `CORS_ORIGINS` | Allowed frontend origins |
+| `LLM_PROVIDER` | Active LLM provider identifier |
+| `LLM_MODEL` | Model configured for the active provider |
+| `LLM_BASE_URL` | Provider API base URL |
+| `LLM_API_KEY` | Server-only API key; never expose to the frontend |
+| `LLM_REQUEST_TIMEOUT` | Model request timeout |
+| `LLM_MAX_OUTPUT_TOKENS` | Maximum completion token budget |
+| `LLM_TEMPERATURE` | Structured generation temperature |
+| `MAX_GENERATED_JSON_BYTES` | Maximum accepted generated JSON size |
 
-| 变量 | 说明 | 当前用途 |
-| --- | --- | --- |
-| `APP_NAME` | FastAPI 应用名称 | 已启用 |
-| `APP_ENVIRONMENT` | `development` / `test` / `production` | 已启用 |
-| `CORS_ORIGINS` | 允许访问 API 的前端地址列表 | 已启用 |
-| `LLM_PROVIDER` | 当前模型供应商标识 | 生成接口 |
-| `LLM_MODEL` | 当前部署使用的模型名称 | 生成接口 |
-| `LLM_BASE_URL` | 当前 Provider API 地址 | 生成接口 |
-| `LLM_API_KEY` | 服务端模型 API Key | 生成接口，不得提交 |
-| `LLM_REQUEST_TIMEOUT` | 模型请求超时秒数 | 生成接口 |
-| `LLM_MAX_OUTPUT_TOKENS` | 单次生成最大输出 Token | 成本与截断保护 |
-| `LLM_TEMPERATURE` | 结构化生成温度 | 生成接口 |
-| `MAX_GENERATED_JSON_BYTES` | 允许的最大 JSON 响应体积 | 长课程保护 |
-| `LLM_*_COST_PER_1M` | 可选 Token 单价快照 | 单次成本估算 |
-| `TEMP_DIR` | 本地生成文件目录 | 导出模块预留 |
+Frontend `frontend/.env.local`：
 
-### Frontend · `frontend/.env.local`
+| Variable | Example |
+| --- | --- |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://127.0.0.1:8000` |
 
-| 变量 | 说明 | 示例 |
-| --- | --- | --- |
-| `NEXT_PUBLIC_API_BASE_URL` | FastAPI 服务地址 | `http://127.0.0.1:8000` |
-
-## 开发检查
+### Validation
 
 ```bash
 # Frontend
 cd frontend
-pnpm lint
 pnpm test
+pnpm lint
 pnpm build
 
-# Backend（项目根目录）
+# Backend — from repository root
 source .venv/bin/activate
-python -m pytest tests/backend
+python -m pytest tests/backend -q
 ```
 
-当前自动化测试覆盖课程需求 Schema、向导草稿、CourseProject 存储与迁移、Workspace 编辑保存、Dashboard 恢复路径、课程规模边界、LLM Factory、DeepSeek 错误映射、结构化蓝图校验、Token 预算、API 客户端和结果页。
+## Project Structure
 
-## Roadmap
-
-- [x] **Foundation** — 前后端工程骨架、设计系统与基础质量工具
-- [x] **Course Intake** — Dashboard、五步课程创建向导、本地草稿闭环
-- [x] **Sprint 3 · Course Blueprint & Resource Planning** — LLM Provider 抽象、DeepSeek 接入、课程目标、模块、课时与后续资源规划
-- [x] **Sprint 4 · Course Workspace** — 多项目本地持久化、Dashboard 项目列表、蓝图保存、再次打开与限定字段编辑
-- [ ] **Sprint 5 · AI Resource Generation** — 按课程蓝图生成教案、PPT、讲义、练习和测验
-- [ ] **Sprint 6 · Export Center** — 集中管理 Word、PPT、Excel 等资源导出
-- [ ] **Sprint 7 · RAG Knowledge Enhancement** — 知识检索、来源约束与引用增强
-- [ ] **Product Platform** — 数据库、登录、团队协作、权限与可观测性
-
-## Sprint 开发记录
-
-| Sprint | 目标 | 交付结果 | 状态 |
-| --- | --- | --- | :---: |
-| Sprint 1 | 建立可运行的产品骨架 | Next.js、FastAPI、Dashboard、设计系统、健康检查 | ✅ |
-| Sprint 2 | 跑通课程需求采集 | 五步向导、Schema 校验、错误摘要、本地草稿、Dashboard 联动 | ✅ |
-| Engineering | 提升开发环境稳定性 | 自动保存循环防护、Turbopack 切换 Webpack、回归测试 | ✅ |
-| Sprint 3 | 生成可扩展 AI 课程蓝图与资源规划 | LLM Provider 抽象、DeepSeek、Prompt、结构校验、资源规划、结果页与会话恢复 | ✅ |
-| Sprint 4 | 将 AI 蓝图升级为可持续管理的课程资产 | CourseProject Store、遗留迁移、项目 Dashboard、可编辑 Workspace 与离开保护 | ✅ |
-
-## 当前版本边界
-
-当前版本通过已配置的后端 LLM Provider 生成课程蓝图：1–20 课时输出完整课时详情，21–50 课时输出模块、阶段、完整索引和关键课时。课程项目保存在当前浏览器，支持标题、总体目标、模块名称、课时标题和课时描述编辑，不支持结构 ID、数量或顺序修改。用户选择的资源类型仅用于规划未来用途和适用范围；当前版本不包含数据库、登录、支付、RAG、团队协作、资源生成或文件导出。
+```text
+EduFlow AI/
+├── frontend/
+│   ├── app/                       # Next.js routes and pages
+│   ├── components/                # Shared layout and UI components
+│   ├── features/
+│   │   ├── course-wizard/         # Course intake and draft flow
+│   │   ├── course-generation/     # AI API, schemas and blueprint result
+│   │   ├── course-workspace/      # CourseProject storage, migration and editor
+│   │   └── dashboard/             # Local project management
+│   ├── tests/                     # Frontend unit and interaction tests
+│   └── types/                     # Shared TypeScript types
+├── backend/
+│   ├── models/                    # Pydantic request and response models
+│   ├── routers/                   # FastAPI routes
+│   ├── services/                  # Course generation and LLM providers
+│   └── prompts/                   # Versioned Course Blueprint prompts
+├── tests/backend/                 # Backend regression tests
+├── assets/                        # Project screenshots and presentation assets
+├── .env.example                   # Backend environment template
+└── requirements.txt               # Python dependencies
+```
 
 ---
 
