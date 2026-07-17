@@ -73,7 +73,7 @@ export function PlanningStyleStep() {
                 type="number"
                 inputMode="numeric"
                 min={1}
-                max={100}
+                max={50}
                 placeholder="例如：2"
                 name={field.name}
                 ref={field.ref}

@@ -29,3 +29,9 @@ export type {
   CourseBrief,
   CourseBriefFormValues,
 } from "@/features/course-wizard/course-brief-schema";
+
+export type {
+  CoursePlan,
+  CoursePlanGenerateResponse,
+  StoredCourseGeneration,
+} from "@/features/course-generation/course-plan-schema";

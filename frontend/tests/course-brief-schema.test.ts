@@ -48,4 +48,9 @@ describe("courseBriefSchema", () => {
       expect(paths).toContain("requestedResources");
     }
   });
+
+  it("accepts 50 lessons and rejects 51", () => {
+    expect(courseBriefSchema.safeParse({ ...validBrief, lessonCount: 50 }).success).toBe(true);
+    expect(courseBriefSchema.safeParse({ ...validBrief, lessonCount: 51 }).success).toBe(false);
+  });
 });

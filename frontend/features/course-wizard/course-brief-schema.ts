@@ -91,8 +91,8 @@ export const courseBriefSchema = z.object({
     "请输入课时数量",
     1,
     "至少需要 1 个课时",
-    100,
-    "课时数量不能超过 100",
+    50,
+    "课程蓝图最多支持 50 个课时",
   ),
   difficulty: z
     .enum(["beginner", "intermediate", "advanced"])

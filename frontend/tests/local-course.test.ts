@@ -5,10 +5,13 @@ import {
   LOCAL_COURSE_ID,
 } from "@/features/dashboard/local-course";
 import { clearCourseWizardDraft, saveCourseWizardDraft } from "@/features/course-wizard/draft-storage";
+import { clearCourseGeneration, saveCourseGeneration } from "@/features/course-generation/course-generation-storage";
+import { makeCourseResponse, validCourseBrief } from "./course-generation-fixtures";
 
 describe("getLocalCourseSummary", () => {
   beforeEach(() => {
     clearCourseWizardDraft(window.localStorage);
+    clearCourseGeneration(window.sessionStorage);
   });
 
   it("returns no course when the local draft has no title", () => {
@@ -47,6 +50,20 @@ describe("getLocalCourseSummary", () => {
       status: "submitted",
       subject: "尚未设置学科",
       audience: "尚未设置目标学员",
+    });
+  });
+
+  it("marks a matching generated blueprint as ready", () => {
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 5,
+      values: validCourseBrief,
+      status: "submitted",
+    });
+    saveCourseGeneration(window.sessionStorage, validCourseBrief, makeCourseResponse());
+
+    expect(getLocalCourseSummary(window.localStorage, window.sessionStorage)).toMatchObject({
+      status: "ready",
+      title: "Python 编程启蒙",
     });
   });
 });

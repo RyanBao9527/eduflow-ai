@@ -37,7 +37,7 @@ export function DashboardView() {
   useEffect(() => {
     let active = true;
     window.queueMicrotask(() => {
-      if (active) setLocalCourse(getLocalCourseSummary(window.localStorage));
+      if (active) setLocalCourse(getLocalCourseSummary(window.localStorage, window.sessionStorage));
     });
     return () => {
       active = false;

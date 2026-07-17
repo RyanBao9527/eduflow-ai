@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -34,8 +34,8 @@ export function WizardNavigation({
         </Button>
       ) : (
         <Button type="submit" disabled={isSubmitting}>
-          <CheckCircle2 className="size-4" />
-          {isSubmitting ? "正在保存…" : "确认并保存课程需求"}
+          <Sparkles className="size-4" />
+          {isSubmitting ? "正在生成…" : "AI 生成课程蓝图"}
         </Button>
       )}
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, RotateCcw, ShieldCheck } from "lucide-react";
+import { Info, RotateCcw, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useForm,
@@ -14,6 +15,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
+import {
+  CourseGenerationApiError,
+  generateCoursePlan,
+} from "@/features/course-generation/course-generation-api";
+import { CourseGenerationError } from "@/features/course-generation/course-generation-error";
+import { CourseGenerationLoading } from "@/features/course-generation/course-generation-loading";
+import { saveCourseGeneration } from "@/features/course-generation/course-generation-storage";
 import { BasicInfoStep } from "@/features/course-wizard/basic-info-step";
 import { CourseBriefReview } from "@/features/course-wizard/course-brief-review";
 import {
@@ -61,11 +69,16 @@ function getErrorMessages(
 }
 
 export function CourseWizard() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [draftState, setDraftState] = useState<DraftSaveState>("idle");
   const [hydrated, setHydrated] = useState(false);
   const [submittedBrief, setSubmittedBrief] = useState<CourseBrief | null>(null);
   const [stepErrorMessages, setStepErrorMessages] = useState<string[]>([]);
+  const [generationBrief, setGenerationBrief] = useState<CourseBrief | null>(null);
+  const [generationError, setGenerationError] = useState<CourseGenerationApiError | null>(null);
+  const [resultNotice, setResultNotice] = useState(false);
+  const inFlightRef = useRef(false);
 
   const form = useForm<CourseBriefFormValues, unknown, CourseBrief>({
     resolver: zodResolver(courseBriefSchema),
@@ -107,6 +120,7 @@ export function CourseWizard() {
           : null,
       );
       setDraftState(restored ? "restored" : "idle");
+      setResultNotice(new URLSearchParams(window.location.search).get("result") === "missing");
       setHydrated(true);
     });
     return () => {
@@ -168,6 +182,7 @@ export function CourseWizard() {
   const goToStep = (step: number) => {
     setSubmittedBrief(null);
     setStepErrorMessages([]);
+    setGenerationError(null);
     setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -188,13 +203,17 @@ export function CourseWizard() {
   const handlePrevious = () => {
     setSubmittedBrief(null);
     setStepErrorMessages([]);
+    setGenerationError(null);
     setCurrentStep((step) => Math.max(step - 1, 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleValidSubmit = (brief: CourseBrief) => {
+  const handleValidSubmit = async (brief: CourseBrief) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setSubmittedBrief(brief);
     setStepErrorMessages([]);
+    setGenerationError(null);
     try {
       saveCourseWizardDraft(window.localStorage, {
         currentStep: 5,
@@ -204,6 +223,23 @@ export function CourseWizard() {
       setDraftState("saved");
     } catch {
       setDraftState("error");
+    }
+    const controller = new AbortController();
+    setGenerationBrief(brief);
+    try {
+      const response = await generateCoursePlan(brief, controller.signal);
+      saveCourseGeneration(window.sessionStorage, brief, response);
+      router.push("/courses/result");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setGenerationError(
+        error instanceof CourseGenerationApiError
+          ? error
+          : new CourseGenerationApiError("课程蓝图生成失败，请重试。"),
+      );
+      setGenerationBrief(null);
+    } finally {
+      inFlightRef.current = false;
     }
   };
 
@@ -226,6 +262,7 @@ export function CourseWizard() {
     setCurrentStep(1);
     setSubmittedBrief(null);
     setStepErrorMessages([]);
+    setGenerationError(null);
     setDraftState("idle");
   };
 
@@ -243,10 +280,22 @@ export function CourseWizard() {
     );
   }
 
+  if (generationBrief) {
+    return <CourseGenerationLoading lessonCount={generationBrief.lessonCount} />;
+  }
+
+  const retryGeneration = () => {
+    void form.handleSubmit(handleValidSubmit, handleInvalidSubmit)();
+  };
+
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(handleValidSubmit, handleInvalidSubmit)}
+        onSubmit={
+          // The request lock is read only after the submit event starts.
+          // eslint-disable-next-line react-hooks/refs
+          form.handleSubmit(handleValidSubmit, handleInvalidSubmit)
+        }
         noValidate
         className="space-y-5"
       >
@@ -260,7 +309,7 @@ export function CourseWizard() {
                 <CardTitle className="mt-2 text-xl sm:text-2xl">{stepMeta.title}</CardTitle>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {currentStep === 5
-                    ? "检查课程需求，确认无误后保存到当前设备。"
+                    ? "检查课程需求，确认无误后生成可扩展的 AI 课程蓝图。"
                     : "填写的信息会自动保存为当前设备上的本地草稿。"}
                 </p>
               </div>
@@ -280,18 +329,22 @@ export function CourseWizard() {
           <CardContent className="space-y-6 pt-6">
             <FormErrorSummary messages={displayedErrors} />
 
-            {submittedBrief && currentStep === 5 && (
-              <Alert className="border-emerald-200 bg-emerald-50/80 text-emerald-900">
+            {resultNotice && currentStep === 5 && (
+              <Alert className="border-blue-200 bg-blue-50/80 text-blue-900">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                  <Info className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                   <div>
-                    <AlertTitle>课程需求已保存</AlertTitle>
-                    <AlertDescription className="text-emerald-800">
-                      已保存到当前设备。AI 课程方案生成将在下一 Sprint 接入，本次没有发送任何网络请求。
+                    <AlertTitle>当前标签页没有可恢复的课程蓝图</AlertTitle>
+                    <AlertDescription className="text-blue-800">
+                      课程需求草稿仍然保留。确认需求后可以重新生成课程蓝图。
                     </AlertDescription>
                   </div>
                 </div>
               </Alert>
+            )}
+
+            {generationError && (
+              <CourseGenerationError error={generationError} onRetry={retryGeneration} />
             )}
 
             {StepComponent ? (
@@ -302,7 +355,7 @@ export function CourseWizard() {
 
             <div className="flex items-start gap-2 rounded-lg bg-muted/70 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-              本 Sprint 仅保存本地课程需求，不会调用课程生成或模型接口。
+              课程需求保存在当前设备。生成请求仅发送到已配置的后端 AI 服务，API Key 不会进入浏览器。
             </div>
 
             <WizardNavigation

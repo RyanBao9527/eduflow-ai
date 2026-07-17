@@ -1,4 +1,5 @@
 import { loadCourseWizardDraft } from "@/features/course-wizard/draft-storage";
+import { loadCourseGeneration } from "@/features/course-generation/course-generation-storage";
 import type { CourseSummary } from "@/types/course";
 
 export const LOCAL_COURSE_ID = "course-local-draft";
@@ -15,10 +16,16 @@ function formatUpdatedAt(updatedAt: string) {
   }).format(date);
 }
 
-export function getLocalCourseSummary(storage: Storage): CourseSummary | null {
+export function getLocalCourseSummary(
+  storage: Storage,
+  generationStorage?: Storage,
+): CourseSummary | null {
   const draft = loadCourseWizardDraft(storage);
   const title = draft.values.courseTitle?.trim();
   if (!title) return null;
+
+  const generation = generationStorage ? loadCourseGeneration(generationStorage) : null;
+  const hasReadyBlueprint = generation?.brief.courseTitle === title;
 
   return {
     id: LOCAL_COURSE_ID,
@@ -26,8 +33,14 @@ export function getLocalCourseSummary(storage: Storage): CourseSummary | null {
     subject: draft.values.subject?.trim() || "尚未设置学科",
     audience: draft.values.targetLearners?.trim() || "尚未设置目标学员",
     lessonCount: draft.values.lessonCount ?? null,
-    status: draft.status === "submitted" ? "submitted" : "draft",
-    updatedAt: formatUpdatedAt(draft.updatedAt),
+    status: hasReadyBlueprint
+      ? "ready"
+      : draft.status === "submitted"
+        ? "submitted"
+        : "draft",
+    updatedAt: formatUpdatedAt(
+      hasReadyBlueprint ? generation.response.generation.generatedAt : draft.updatedAt,
+    ),
     accent: "blue",
   };
 }

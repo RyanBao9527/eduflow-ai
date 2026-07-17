@@ -65,10 +65,10 @@ export function CourseCard({ course }: CourseCardProps) {
           </span>
           {course.id === "course-local-draft" ? (
             <Link
-              href="/courses/new"
+              href={course.status === "ready" ? "/courses/result" : "/courses/new"}
               className="flex items-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-[#2949b6]"
             >
-              继续编辑
+              {course.status === "ready" ? "查看蓝图" : "继续编辑"}
               <ArrowUpRight className="size-3.5" />
             </Link>
           ) : (

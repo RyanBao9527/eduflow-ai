@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,7 @@ import {
   COURSE_WIZARD_SAVE_DELAY_MS,
   saveCourseWizardDraft,
 } from "@/features/course-wizard/draft-storage";
+import { validCourseBrief } from "./course-generation-fixtures";
 
 describe("CourseWizard", () => {
   it("does not restart autosave when only the save status changes", async () => {
@@ -55,6 +56,29 @@ describe("CourseWizard", () => {
     expect(screen.getByDisplayValue("10–12 岁零基础学生")).toBeInTheDocument();
   });
 
+  it("restores an old draft over 50 lessons but requires the user to reduce it", async () => {
+    const user = userEvent.setup();
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 3,
+      values: {
+        lessonDurationMinutes: 45,
+        lessonCount: 51,
+        difficulty: "beginner",
+        teachingStyles: ["互动式"],
+        overallGoal: "建立完整且可持续扩展的课程学习路径",
+      },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    expect(await screen.findByRole("heading", { name: "课程规划与教学风格" })).toBeInTheDocument();
+    expect(screen.getByLabelText("课时数量")).toHaveValue(51);
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    expect((await screen.findAllByText("课程蓝图最多支持 50 个课时")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "课程规划与教学风格" })).toBeInTheDocument();
+  });
+
   it("asks for confirmation before clearing the draft", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
@@ -94,5 +118,24 @@ describe("CourseWizard", () => {
     expect(screen.getByLabelText("课程名称")).toHaveValue("");
     expect(window.localStorage).toHaveLength(0);
     confirmSpy.mockRestore();
+  });
+
+  it("prevents duplicate AI requests from repeated submit events", async () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 5,
+      values: validCourseBrief,
+      status: "submitted",
+    });
+    render(<CourseWizard />);
+
+    const button = await screen.findByRole("button", { name: "AI 生成课程蓝图" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("heading", { name: "AI 正在生成课程蓝图" })).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    vi.unstubAllGlobals();
   });
 });
