@@ -7,15 +7,18 @@ import {
   COURSE_WIZARD_SAVE_DELAY_MS,
   saveCourseWizardDraft,
 } from "@/features/course-wizard/draft-storage";
+import { listCourseProjects } from "@/features/course-workspace/course-project-storage";
 import { validCourseBrief } from "./course-generation-fixtures";
 
 describe("CourseWizard", () => {
   it("does not restart autosave when only the save status changes", async () => {
+    const user = userEvent.setup();
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
     render(<CourseWizard />);
 
     await screen.findByRole("heading", { name: "基础信息" });
+    await user.type(screen.getByLabelText("课程名称"), "企业培训课程");
     await waitFor(() => expect(setItemSpy).toHaveBeenCalledTimes(1));
     await new Promise((resolve) =>
       window.setTimeout(resolve, COURSE_WIZARD_SAVE_DELAY_MS + 100),
@@ -136,7 +139,7 @@ describe("CourseWizard", () => {
     expect(confirmSpy).toHaveBeenCalledOnce();
     expect(await screen.findByRole("heading", { name: "基础信息" })).toBeInTheDocument();
     expect(screen.getByLabelText("课程名称")).toHaveValue("");
-    expect(window.localStorage).toHaveLength(0);
+    expect(listCourseProjects(window.localStorage)).toHaveLength(0);
     confirmSpy.mockRestore();
   });
 
