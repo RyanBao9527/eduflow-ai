@@ -2,7 +2,7 @@ import {
   BookOpenText,
   Boxes,
   CheckCircle2,
-  Download,
+  Pencil,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +23,7 @@ const metricStyles = {
     className: "bg-[#f0eafe] text-[#7652bd]",
   },
   amber: {
-    icon: Download,
+    icon: Pencil,
     className: "bg-[#fff1d9] text-[#a9670a]",
   },
 };

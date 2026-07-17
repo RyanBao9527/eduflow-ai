@@ -1,4 +1,4 @@
-export type CourseStatus = "draft" | "submitted" | "generating" | "ready" | "error";
+export type CourseStatus = "draft" | "generated" | "editing";
 
 export interface CourseSummary {
   id: string;
@@ -9,6 +9,8 @@ export interface CourseSummary {
   status: CourseStatus;
   updatedAt: string;
   accent: "blue" | "teal" | "amber";
+  href: string;
+  actionLabel: string;
 }
 
 export interface DashboardMetric {
@@ -35,3 +37,9 @@ export type {
   CoursePlanGenerateResponse,
   StoredCourseGeneration,
 } from "@/features/course-generation/course-plan-schema";
+
+export type {
+  CourseProject,
+  CourseProjectGeneration,
+  CourseProjectStatus,
+} from "@/features/course-workspace/course-project-schema";

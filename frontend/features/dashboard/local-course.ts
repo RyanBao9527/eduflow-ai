@@ -4,6 +4,11 @@ import type { CourseSummary } from "@/types/course";
 
 export const LOCAL_COURSE_ID = "course-local-draft";
 
+/**
+ * @deprecated Sprint 4 uses the versioned CourseProject store. This adapter remains
+ * available for legacy migration and compatibility tests only.
+ */
+
 function formatUpdatedAt(updatedAt: string) {
   const date = new Date(updatedAt);
   if (Number.isNaN(date.getTime()) || date.getTime() === 0) return "刚刚更新";
@@ -33,14 +38,12 @@ export function getLocalCourseSummary(
     subject: draft.values.subject?.trim() || "尚未设置学科",
     audience: draft.values.targetLearners?.trim() || "尚未设置目标学员",
     lessonCount: draft.values.lessonCount ?? null,
-    status: hasReadyBlueprint
-      ? "ready"
-      : draft.status === "submitted"
-        ? "submitted"
-        : "draft",
+    status: hasReadyBlueprint ? "generated" : "draft",
     updatedAt: formatUpdatedAt(
       hasReadyBlueprint ? generation.response.generation.generatedAt : draft.updatedAt,
     ),
     accent: "blue",
+    href: hasReadyBlueprint ? "/courses/result" : "/courses/new",
+    actionLabel: hasReadyBlueprint ? "查看蓝图" : "继续编辑",
   };
 }

@@ -2,9 +2,6 @@
 
 import {
   ArrowRight,
-  CheckCircle2,
-  FileText,
-  Presentation,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -12,41 +9,76 @@ import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { CourseCard } from "@/features/dashboard/course-card";
-import {
-  dashboardMetrics,
-  recentCourses,
-  recentExports,
-} from "@/features/dashboard/mock-data";
+import { CourseProjectList } from "@/features/dashboard/course-project-list";
 import { MetricCard } from "@/features/dashboard/metric-card";
-import { getLocalCourseSummary } from "@/features/dashboard/local-course";
+import { migrateLegacyCourseProject } from "@/features/course-workspace/course-project-migration";
+import { listCourseProjects } from "@/features/course-workspace/course-project-storage";
+import type { CourseProject } from "@/features/course-workspace/course-project-schema";
+import type { CourseSummary, DashboardMetric } from "@/types/course";
 import { useEffect, useState } from "react";
 
-const exportIcons = [FileText, Presentation, CheckCircle2];
+function formatUpdatedAt(updatedAt: string) {
+  const date = new Date(updatedAt);
+  if (Number.isNaN(date.getTime())) return "刚刚更新";
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function toCourseSummary(project: CourseProject, index: number): CourseSummary {
+  const hasPreview = project.status === "draft" && Boolean(project.coursePlan);
+  return {
+    id: project.id,
+    title: project.title,
+    subject: project.courseBrief.subject?.trim() || "尚未设置学科",
+    audience: project.courseBrief.targetLearners?.trim() || "尚未设置目标学员",
+    lessonCount: project.courseBrief.lessonCount ?? null,
+    status: project.status,
+    updatedAt: formatUpdatedAt(project.updatedAt),
+    accent: (["blue", "teal", "amber"] as const)[index % 3],
+    href: project.status === "draft"
+      ? hasPreview
+        ? `/courses/result?projectId=${project.id}`
+        : `/courses/new?projectId=${project.id}`
+      : `/courses/${project.id}`,
+    actionLabel: project.status === "draft"
+      ? hasPreview ? "查看蓝图" : "继续填写"
+      : "打开课程",
+  };
+}
+
+function getMetrics(projects: CourseProject[]): DashboardMetric[] {
+  const count = (status: CourseProject["status"]) => projects.filter((project) => project.status === status).length;
+  return [
+    { label: "课程项目", value: String(projects.length), change: "当前设备", tone: "blue" },
+    { label: "课程草稿", value: String(count("draft")), change: "待完成或待保存", tone: "amber" },
+    { label: "已生成", value: String(count("generated")), change: "AI 蓝图已保存", tone: "green" },
+    { label: "已编辑", value: String(count("editing")), change: "人工修改已保存", tone: "violet" },
+  ];
+}
 
 export function DashboardView() {
-  const [localCourse, setLocalCourse] = useState<ReturnType<typeof getLocalCourseSummary>>(null);
+  const [projects, setProjects] = useState<CourseProject[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     let active = true;
     window.queueMicrotask(() => {
-      if (active) setLocalCourse(getLocalCourseSummary(window.localStorage, window.sessionStorage));
+      if (!active) return;
+      migrateLegacyCourseProject(window.localStorage, window.sessionStorage);
+      setProjects(listCourseProjects(window.localStorage));
+      setHydrated(true);
     });
     return () => {
       active = false;
     };
   }, []);
 
-  const courses = localCourse
-    ? [localCourse, ...recentCourses.filter((course) => course.title !== localCourse.title)]
-    : recentCourses;
+  const courses = projects.map(toCourseSummary);
+  const dashboardMetrics = getMetrics(projects);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -77,8 +109,8 @@ export function DashboardView() {
                 从一个课程想法，走到完整交付
               </h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[#53617d]">
-                在同一个工作台中组织课程结构、教案、讲义、课件、练习与课程包。
-                示例课程之外，你在当前设备保存的课程草稿也会显示在最近课程中。
+                在同一个工作台中组织课程结构、保存 AI 蓝图，并持续完善课程项目。
+                所有项目当前保存在这台设备的浏览器中。
               </p>
               <Button asChild className="mt-5">
                 <Link href="/courses/new">
@@ -95,67 +127,20 @@ export function DashboardView() {
             ))}
           </section>
 
-          <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <section aria-labelledby="recent-courses-title">
+          <div className="mt-8">
+            <section id="course-projects" aria-labelledby="course-projects-title">
               <div className="mb-4 flex items-end justify-between gap-4">
                 <div>
-                  <h2 id="recent-courses-title" className="text-lg font-bold tracking-tight">
-                    最近课程
+                  <h2 id="course-projects-title" className="text-lg font-bold tracking-tight">
+                    课程项目
                   </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">继续处理最近编辑的课程项目</p>
+                  <p className="mt-1 text-sm text-muted-foreground">按最近更新时间排列，可继续填写、确认蓝图或进入 Workspace</p>
                 </div>
-                <button type="button" className="text-sm font-semibold text-primary hover:text-[#2949b6]">
-                  查看全部
-                </button>
               </div>
-              <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
-                {courses.map((course) => (
-                  <CourseCard key={course.id} course={course} />
-                ))}
-              </div>
+              {hydrated ? <CourseProjectList courses={courses} /> : (
+                <div className="rounded-2xl border bg-white p-8 text-center text-sm text-muted-foreground">正在加载课程项目…</div>
+              )}
             </section>
-
-            <aside aria-labelledby="recent-exports-title">
-              <Card>
-                <CardHeader className="flex flex-row items-start justify-between gap-4">
-                  <div>
-                    <CardTitle id="recent-exports-title">最近导出</CardTitle>
-                    <CardDescription className="mt-1">已生成的课程资源</CardDescription>
-                  </div>
-                  <button type="button" className="text-xs font-semibold text-primary">
-                    全部记录
-                  </button>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-1">
-                    {recentExports.map((item, index) => {
-                      const Icon = exportIcons[index];
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-start gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-muted"
-                        >
-                          <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-secondary-foreground">
-                            <Icon className="size-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-[#273149]">
-                              {item.courseTitle}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {item.resourceType}
-                            </p>
-                          </div>
-                          <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                            {item.exportedAt}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </aside>
           </div>
         </main>
       </div>
