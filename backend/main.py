@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import get_settings
 from backend.routers.course_generation import router as course_generation_router
 from backend.routers.health import router as health_router
+from backend.routers.resource_generation import router as resource_generation_router
 
 
 def create_app() -> FastAPI:
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     )
     application.include_router(health_router)
     application.include_router(course_generation_router)
+    application.include_router(resource_generation_router)
 
     return application
 
