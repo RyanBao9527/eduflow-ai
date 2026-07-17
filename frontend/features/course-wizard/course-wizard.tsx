@@ -38,8 +38,6 @@ import {
   clearCourseWizardDraft,
   COURSE_WIZARD_SAVE_DELAY_MS,
   hasMeaningfulDraftValues,
-  loadCourseWizardDraft,
-  saveCourseWizardDraft,
 } from "@/features/course-wizard/draft-storage";
 import {
   DraftStatus,
@@ -51,6 +49,14 @@ import { ResourceSelectionStep } from "@/features/course-wizard/resource-selecti
 import { TargetLearnersStep } from "@/features/course-wizard/target-learners-step";
 import { WizardNavigation } from "@/features/course-wizard/wizard-navigation";
 import { WizardStepIndicator } from "@/features/course-wizard/wizard-step-indicator";
+import { migrateLegacyCourseProject } from "@/features/course-workspace/course-project-migration";
+import {
+  attachGenerationToProject,
+  createDraftCourseProject,
+  deleteCourseProject,
+  getCourseProject,
+  updateDraftCourseProject,
+} from "@/features/course-workspace/course-project-storage";
 
 const stepComponents = [
   BasicInfoStep,
@@ -73,11 +79,11 @@ export function CourseWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [draftState, setDraftState] = useState<DraftSaveState>("idle");
   const [hydrated, setHydrated] = useState(false);
-  const [submittedBrief, setSubmittedBrief] = useState<CourseBrief | null>(null);
   const [stepErrorMessages, setStepErrorMessages] = useState<string[]>([]);
   const [generationBrief, setGenerationBrief] = useState<CourseBrief | null>(null);
   const [generationError, setGenerationError] = useState<CourseGenerationApiError | null>(null);
   const [resultNotice, setResultNotice] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
   const form = useForm<CourseBriefFormValues, unknown, CourseBrief>({
@@ -92,7 +98,7 @@ export function CourseWizard() {
   const watchedValuesSignature = JSON.stringify(watchedValues);
   const latestValuesRef = useRef<Partial<CourseBriefFormValues>>(watchedValues);
   const latestStepRef = useRef(currentStep);
-  const submittedRef = useRef(Boolean(submittedBrief));
+  const projectIdRef = useRef<string | null>(projectId);
 
   useEffect(() => {
     latestValuesRef.current = watchedValues;
@@ -100,25 +106,33 @@ export function CourseWizard() {
 
   useEffect(() => {
     latestStepRef.current = currentStep;
-    submittedRef.current = Boolean(submittedBrief);
-  }, [currentStep, submittedBrief]);
+    projectIdRef.current = projectId;
+  }, [currentStep, projectId]);
 
   useEffect(() => {
     let active = true;
     window.queueMicrotask(() => {
       if (!active) return;
-      const draft = loadCourseWizardDraft(window.localStorage);
-      const restored = hasMeaningfulDraftValues(draft.values);
+      const requestedId = new URLSearchParams(window.location.search).get("projectId");
+      const migrated = migrateLegacyCourseProject(window.localStorage, window.sessionStorage);
+      const requestedProject = requestedId
+        ? getCourseProject(window.localStorage, requestedId)
+        : null;
+      const project = requestedProject ?? migrated;
+      const values = project?.courseBrief ?? {};
+      const restored = hasMeaningfulDraftValues(values);
       reset({
         ...DEFAULT_COURSE_BRIEF_VALUES,
-        ...draft.values,
+        ...values,
       } as CourseBriefFormValues);
-      setCurrentStep(draft.currentStep);
-      setSubmittedBrief(
-        draft.status === "submitted"
-          ? courseBriefSchema.safeParse(draft.values).data ?? null
-          : null,
-      );
+      setCurrentStep(project?.wizardStep ?? 1);
+      if (project) {
+        setProjectId(project.id);
+        projectIdRef.current = project.id;
+        if (requestedId !== project.id) {
+          window.history.replaceState(null, "", `/courses/new?projectId=${project.id}`);
+        }
+      }
       setDraftState(restored ? "restored" : "idle");
       setResultNotice(new URLSearchParams(window.location.search).get("result") === "missing");
       setHydrated(true);
@@ -129,16 +143,33 @@ export function CourseWizard() {
   }, [reset]);
 
   const persistDraft = useCallback(
-    (status: "draft" | "submitted" = "draft") => {
+    () => {
       try {
-        saveCourseWizardDraft(window.localStorage, {
-          currentStep: latestStepRef.current,
-          values: latestValuesRef.current,
-          status,
-        });
+        if (!hasMeaningfulDraftValues(latestValuesRef.current)) return null;
+        const existingId = projectIdRef.current;
+        const project = existingId
+          ? updateDraftCourseProject(
+              window.localStorage,
+              existingId,
+              latestValuesRef.current,
+              latestStepRef.current,
+            )
+          : createDraftCourseProject(
+              window.localStorage,
+              latestValuesRef.current,
+              undefined,
+              latestStepRef.current,
+            );
+        if (!existingId) {
+          projectIdRef.current = project.id;
+          setProjectId(project.id);
+          window.history.replaceState(null, "", `/courses/new?projectId=${project.id}`);
+        }
         setDraftState("saved");
+        return project.id;
       } catch {
         setDraftState("error");
+        return null;
       }
     },
     [],
@@ -148,24 +179,28 @@ export function CourseWizard() {
     if (!hydrated) return;
     const statusTimer = window.setTimeout(() => setDraftState("saving"), 0);
     const saveTimer = window.setTimeout(
-      () => persistDraft(submittedBrief ? "submitted" : "draft"),
+      () => persistDraft(),
       COURSE_WIZARD_SAVE_DELAY_MS,
     );
     return () => {
       window.clearTimeout(statusTimer);
       window.clearTimeout(saveTimer);
     };
-  }, [currentStep, hydrated, persistDraft, submittedBrief, watchedValuesSignature]);
+  }, [currentStep, hydrated, persistDraft, watchedValuesSignature]);
 
   useEffect(() => {
     if (!hydrated) return;
     const handleBeforeUnload = () => {
       try {
-        saveCourseWizardDraft(window.localStorage, {
-          currentStep: latestStepRef.current,
-          values: latestValuesRef.current,
-          status: submittedRef.current ? "submitted" : "draft",
-        });
+        const id = projectIdRef.current;
+        if (id) {
+          updateDraftCourseProject(
+            window.localStorage,
+            id,
+            latestValuesRef.current,
+            latestStepRef.current,
+          );
+        }
       } catch {
         // The draft remains available in memory when browser storage is blocked.
       }
@@ -180,7 +215,6 @@ export function CourseWizard() {
   );
 
   const goToStep = (step: number) => {
-    setSubmittedBrief(null);
     setStepErrorMessages([]);
     setGenerationError(null);
     setCurrentStep(step);
@@ -201,7 +235,6 @@ export function CourseWizard() {
   };
 
   const handlePrevious = () => {
-    setSubmittedBrief(null);
     setStepErrorMessages([]);
     setGenerationError(null);
     setCurrentStep((step) => Math.max(step - 1, 1));
@@ -211,25 +244,41 @@ export function CourseWizard() {
   const handleValidSubmit = async (brief: CourseBrief) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
-    setSubmittedBrief(brief);
     setStepErrorMessages([]);
     setGenerationError(null);
     try {
-      saveCourseWizardDraft(window.localStorage, {
-        currentStep: 5,
-        values: brief,
-        status: "submitted",
-      });
+      latestValuesRef.current = brief;
+      latestStepRef.current = 5;
+      const id = projectIdRef.current;
+      const project = id
+        ? updateDraftCourseProject(window.localStorage, id, brief, 5)
+        : createDraftCourseProject(window.localStorage, brief, undefined, 5);
+      projectIdRef.current = project.id;
+      setProjectId(project.id);
+      window.history.replaceState(null, "", `/courses/new?projectId=${project.id}`);
       setDraftState("saved");
     } catch {
       setDraftState("error");
+      setGenerationError(
+        new CourseGenerationApiError("课程草稿无法保存到当前设备，请检查浏览器存储空间后重试。"),
+      );
+      inFlightRef.current = false;
+      return;
     }
     const controller = new AbortController();
     setGenerationBrief(brief);
     try {
       const response = await generateCoursePlan(brief, controller.signal);
-      saveCourseGeneration(window.sessionStorage, brief, response);
-      router.push("/courses/result");
+      const id = projectIdRef.current;
+      if (!id) throw new Error("课程项目尚未创建");
+      try {
+        attachGenerationToProject(window.localStorage, id, brief, response);
+      } catch {
+        saveCourseGeneration(window.sessionStorage, brief, response);
+        router.push(`/courses/result?projectId=${id}&recovery=session`);
+        return;
+      }
+      router.push(`/courses/result?projectId=${id}`);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setGenerationError(
@@ -257,12 +306,20 @@ export function CourseWizard() {
   const handleClearDraft = () => {
     const confirmed = window.confirm("确定清除当前课程草稿并重新开始吗？此操作无法撤销。");
     if (!confirmed) return;
+    try {
+      if (projectIdRef.current) deleteCourseProject(window.localStorage, projectIdRef.current);
+    } catch {
+      setDraftState("error");
+      return;
+    }
     clearCourseWizardDraft(window.localStorage);
     form.reset(DEFAULT_COURSE_BRIEF_VALUES);
     setCurrentStep(1);
-    setSubmittedBrief(null);
     setStepErrorMessages([]);
     setGenerationError(null);
+    setProjectId(null);
+    projectIdRef.current = null;
+    window.history.replaceState(null, "", "/courses/new");
     setDraftState("idle");
   };
 
