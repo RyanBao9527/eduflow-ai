@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> EduFlow AI 当前处于早期产品验证阶段。v0.1 已完成课程工作台、课程创建向导与本地草稿闭环；AI 课程生成、持久化与导出能力正在 Roadmap 中推进。
+> EduFlow AI 当前处于早期产品验证阶段。课程工作台、五步需求向导和 AI Course Blueprint 已形成闭环；数据库持久化、课程编辑与资源导出仍在 Roadmap 中。
 
 ## 产品背景
 
@@ -35,7 +35,11 @@ EduFlow AI 希望把这条链路收拢到一个统一工作台：先用结构化
 | 结构化需求校验 | React Hook Form 与 Zod 驱动的分步校验和错误定位 |
 | 本地草稿 | 自动保存、恢复、清除以及离开页面前持久化 |
 | 工作台联动 | 当前设备上的课程草稿自动显示在最近课程中，并可继续编辑 |
-| API 基础设施 | FastAPI 应用工厂、环境配置、CORS 与健康检查接口 |
+| AI Course Blueprint | 按课程规模生成完整蓝图或模块、阶段与关键课时结构 |
+| 模型无关后端 | 统一 LLM Provider 接口，当前接入 DeepSeek，模型信息完全配置化 |
+| 结构化输出保障 | JSON Output、Pydantic 校验、重复课时检查、截断保护与一次受控重试 |
+| 会话结果恢复 | 生成结果保存在当前标签页的 sessionStorage，可刷新恢复 |
+| API 基础设施 | FastAPI 应用工厂、环境配置、CORS、健康检查与课程生成接口 |
 | 工程质量 | Vitest、Testing Library、Pytest、ESLint 与生产构建检查 |
 
 ## 产品预览
@@ -58,15 +62,19 @@ flowchart LR
     W --> D["Dashboard"]
     W --> C["Course Creation Wizard"]
     C --> V["React Hook Form + Zod"]
-    C --> L["Browser localStorage"]
-    W -. "HTTP API" .-> A["FastAPI Backend"]
+    C --> L["localStorage / sessionStorage"]
+    W --> A["FastAPI Backend"]
     A --> P["Pydantic Settings"]
     A --> H["Health API"]
-    A -. "Sprint 3" .-> M["LLM Provider"]
+    A --> S["Course Generation Service"]
+    S --> I["LLM Provider Interface"]
+    I --> M["Configured Provider"]
+    M --> DS["DeepSeek"]
+    I -. "Future" .-> O["OpenAI / Gemini / Anthropic"]
     A -. "Future" .-> E["Course Resource Exporters"]
 ```
 
-当前版本采用前后端分离结构：Next.js 承担产品界面和本地草稿体验，FastAPI 提供后续 AI 编排、课程持久化和资源导出的服务边界。图中的虚线能力属于后续版本规划。
+当前版本采用前后端分离结构：Next.js 承担产品界面、本地草稿和会话结果体验；FastAPI 负责课程蓝图 Prompt、模型调用和结构校验。课程业务只依赖统一结构化输出接口，不绑定具体模型供应商。图中的虚线能力属于后续版本规划。
 
 ## 技术栈
 
@@ -78,7 +86,8 @@ flowchart LR
 | Frontend Testing | Vitest、Testing Library、jsdom |
 | Backend | FastAPI、Uvicorn、Pydantic、Pydantic Settings |
 | Backend Testing | Pytest、HTTPX |
-| Local Persistence | Browser localStorage |
+| AI Integration | Model-agnostic Provider Protocol、DeepSeek、structured JSON output |
+| Local Persistence | Browser localStorage、sessionStorage |
 | Package Management | pnpm、Python venv / pip |
 | Development Runtime | Next.js Webpack dev server（规避当前 Turbopack HMR 稳定性问题） |
 
@@ -91,14 +100,15 @@ EduFlow AI/
 │   ├── components/                # 通用布局与 UI 组件
 │   ├── features/
 │   │   ├── course-wizard/         # 课程创建向导、校验与草稿逻辑
+│   │   ├── course-generation/     # AI 请求、结果 Schema、会话存储与蓝图视图
 │   │   └── dashboard/             # 工作台与课程摘要
 │   ├── tests/                     # 前端单元与交互测试
 │   └── types/                     # 共享 TypeScript 类型
 ├── backend/
 │   ├── models/                    # Pydantic 数据模型
 │   ├── routers/                   # FastAPI 路由
-│   ├── services/                  # 业务服务边界
-│   ├── prompts/                   # AI Prompt 模块预留
+│   ├── services/                  # 课程生成服务与 LLM Provider 抽象
+│   ├── prompts/                   # 版本化 Course Blueprint Prompt
 │   └── exporters/                 # 课程资源导出模块预留
 ├── tests/backend/                 # 后端测试
 ├── assets/                        # 项目截图与展示资源
@@ -135,6 +145,7 @@ pnpm dev
 
 - Dashboard：`http://localhost:3000/dashboard`
 - 新建课程：`http://localhost:3000/courses/new`
+- 课程蓝图：`http://localhost:3000/courses/result`（需先在当前标签页完成生成）
 
 ### 3. 启动后端
 
@@ -164,11 +175,15 @@ python -m uvicorn backend.main:app --reload --port 8000
 | `APP_NAME` | FastAPI 应用名称 | 已启用 |
 | `APP_ENVIRONMENT` | `development` / `test` / `production` | 已启用 |
 | `CORS_ORIGINS` | 允许访问 API 的前端地址列表 | 已启用 |
-| `OPENAI_API_KEY` | 模型服务 API Key | 预留，v0.1 不调用模型 |
-| `OPENAI_BASE_URL` | OpenAI-compatible API 地址 | 预留 |
-| `OPENAI_MODEL` | 模型名称 | 预留 |
-| `REQUEST_TIMEOUT` | 模型请求超时秒数 | 预留 |
-| `MAX_CONTEXT_LENGTH` | 最大上下文长度 | 预留 |
+| `LLM_PROVIDER` | 当前模型供应商标识 | 生成接口 |
+| `LLM_MODEL` | 当前部署使用的模型名称 | 生成接口 |
+| `LLM_BASE_URL` | 当前 Provider API 地址 | 生成接口 |
+| `LLM_API_KEY` | 服务端模型 API Key | 生成接口，不得提交 |
+| `LLM_REQUEST_TIMEOUT` | 模型请求超时秒数 | 生成接口 |
+| `LLM_MAX_OUTPUT_TOKENS` | 单次生成最大输出 Token | 成本与截断保护 |
+| `LLM_TEMPERATURE` | 结构化生成温度 | 生成接口 |
+| `MAX_GENERATED_JSON_BYTES` | 允许的最大 JSON 响应体积 | 长课程保护 |
+| `LLM_*_COST_PER_1M` | 可选 Token 单价快照 | 单次成本估算 |
 | `TEMP_DIR` | 本地生成文件目录 | 导出模块预留 |
 
 ### Frontend · `frontend/.env.local`
@@ -191,16 +206,17 @@ source .venv/bin/activate
 python -m pytest tests/backend
 ```
 
-当前自动化测试覆盖课程需求 Schema、向导分步校验、本地草稿恢复与清除、Dashboard 本地课程映射，以及后端健康检查。
+当前自动化测试覆盖课程需求 Schema、向导草稿、课程规模边界、LLM Factory、DeepSeek 错误映射、结构化蓝图校验、Token 预算、API 客户端、sessionStorage 恢复、结果页与 Dashboard 状态。
 
 ## Roadmap
 
 - [x] **Foundation** — 前后端工程骨架、设计系统与基础质量工具
 - [x] **Course Intake** — Dashboard、五步课程创建向导、本地草稿闭环
-- [ ] **AI Course Blueprint** — 根据结构化需求生成课程目标、课时结构和资源计划
+- [x] **AI Course Blueprint** — LLM Provider 抽象、DeepSeek 接入、课程目标、模块、课时与资源规划
 - [ ] **Course Workspace** — 课程详情、版本编辑、生成状态与资源管理
-- [ ] **Content Generation** — 教案、讲稿、讲义、课件、练习与测验生成
-- [ ] **Export Pipeline** — Word、PowerPoint、Excel 与课程包导出
+- [ ] **Lesson Generation** — 根据稳定 lessonId 按需生成单课详细内容
+- [ ] **Resource Generation & Export** — 教案、PPT、讲义、练习、测验和课程包导出
+- [ ] **RAG Knowledge Enhancement** — 知识检索、来源约束与引用增强
 - [ ] **Product Platform** — 数据库、登录、团队协作、权限与可观测性
 
 ## Sprint 开发记录
@@ -210,11 +226,11 @@ python -m pytest tests/backend
 | Sprint 1 | 建立可运行的产品骨架 | Next.js、FastAPI、Dashboard、设计系统、健康检查 | ✅ |
 | Sprint 2 | 跑通课程需求采集 | 五步向导、Schema 校验、错误摘要、本地草稿、Dashboard 联动 | ✅ |
 | Engineering | 提升开发环境稳定性 | 自动保存循环防护、Turbopack 切换 Webpack、回归测试 | ✅ |
-| Sprint 3 | 生成 AI 课程蓝图 | API 契约、Prompt、模型服务、结构化课程方案 | Planned |
+| Sprint 3 | 生成可扩展 AI 课程蓝图 | LLM Provider 抽象、DeepSeek、Prompt、结构校验、结果页与会话恢复 | ✅ |
 
 ## 当前版本边界
 
-v0.1 聚焦课程需求采集与产品流程验证，Dashboard 中部分课程与导出数据为演示数据。当前版本不会发送模型请求，也不包含数据库、登录、支付、RAG、团队协作或正式资源导出。
+当前版本通过已配置的后端 LLM Provider 生成课程蓝图：1–20 课时输出完整课时详情，21–50 课时输出模块、阶段、完整索引和关键课时。Dashboard 中部分课程与导出数据仍为演示数据；当前版本不包含数据库、登录、支付、RAG、团队协作、蓝图编辑或正式资源导出。
 
 ---
 
