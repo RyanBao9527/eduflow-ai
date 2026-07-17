@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
+from backend.routers.course_generation import router as course_generation_router
 from backend.routers.health import router as health_router
 
 
@@ -10,7 +11,7 @@ def create_app() -> FastAPI:
 
     application = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
+        version="0.2.0",
         description="EduFlow AI MVP backend",
     )
     application.add_middleware(
@@ -21,6 +22,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     application.include_router(health_router)
+    application.include_router(course_generation_router)
 
     return application
 
