@@ -6,7 +6,7 @@
 
 将课程想法转化为结构化 AI Course Blueprint，并在可编辑的 Course Workspace 中持续管理和完善。
 
-[![Version](https://img.shields.io/badge/version-v0.3.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.3.0)
+[![Version](https://img.shields.io/badge/version-v0.4.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.4.0)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> **Current Version: v0.3.0 — Course Workspace release.** 课程需求采集、AI 课程蓝图生成、本地项目保存、编辑与再次打开已形成完整闭环。
+> **Current Version: v0.4.0 — AI Resource Generation MVP.** 支持在 Course Workspace 中为单个课时生成、保存和预览教师教案与 PPT 课件内容结构。
 
 ## Product Positioning
 
@@ -34,7 +34,8 @@ Course Wizard
 → AI Course Blueprint
 → Save as CourseProject
 → Course Workspace
-→ Edit, save and reopen from Dashboard
+→ Generate lesson resources
+→ Preview current and historical ResourceArtifacts
 ```
 
 ## Features
@@ -48,6 +49,9 @@ Course Wizard
 | CourseProject | 使用稳定 UUID、`schemaVersion`、状态和生成元数据封装课程资产 |
 | Local Persistence | 多个课程项目保存到 localStorage，并兼容迁移旧草稿与 session 蓝图 |
 | Course Workspace | 编辑课程标题、总体目标、模块名称、课时标题和课时描述 |
+| Lesson-level Resource Generation | 为指定课时生成教师教案或 PPT 课件内容结构 |
+| ResourceArtifact | 独立保存资源内容、生成元数据、稳定 UUID 和最近三个版本 |
+| Workspace Resource Preview | 只读查看最新资源、生成模型、Token 使用和历史版本 |
 | Dashboard Management | 展示本地课程项目、状态、更新时间和对应的继续操作入口 |
 | Data-loss Protection | 自动保存、显式 Workspace 保存、未保存离开提醒和存储异常回退 |
 | Engineering Quality | Vitest、Testing Library、Pytest、ESLint 和 Next.js production build |
@@ -78,9 +82,12 @@ flowchart LR
     C --> P
     R --> P
     CW --> P
+    CW --> RA["Versioned ResourceArtifact Store"]
     W --> A["FastAPI Backend"]
     A --> S["Course Generation Service"]
+    A --> RS["Resource Generation Service"]
     S --> I["LLM Provider Interface"]
+    RS --> I
     I --> DS["DeepSeek Provider"]
     I -. "Future providers" .-> F["OpenAI / Gemini / Anthropic"]
 ```
@@ -100,6 +107,8 @@ CourseProject
 
 MVP 不使用数据库。CourseProject repository 隔离了存储细节，后续接入持久化 API 时可以保留 Workspace 组件和稳定数据结构。
 
+ResourceArtifact 使用独立的版本化 localStorage repository，通过 `courseProjectId`、`lessonId` 和 `resourceType` 关联课程项目。资源不会嵌入或改写 CourseProject。
+
 ## Tech Stack
 
 | Layer | Technologies |
@@ -115,19 +124,26 @@ MVP 不使用数据库。CourseProject repository 隔离了存储细节，后续
 
 ## Current Version
 
-### v0.3.0 — Course Workspace
+### v0.4.0 — AI Resource Generation MVP
 
-v0.3.0 将 AI 生成结果从当前标签页中的只读蓝图升级为可长期保存、再次打开和人工编辑的本地课程项目。
+v0.4.0 将课程蓝图扩展为可在单课维度生成和管理 AI 教学资源的 Workspace 工作流。
 
 Highlights:
 
-- Versioned CourseProject architecture.
-- Local course persistence and legacy data migration.
-- Editable Course Workspace with explicit save and dirty-state protection.
-- Dashboard course project management.
-- 38 frontend tests and 22 backend regression tests passing at release validation.
+- Lesson-level AI resource generation.
+- Teacher lesson plan generation.
+- Slide outline generation.
+- Independent ResourceArtifact version management.
+- Read-only Workspace resource preview with generation metadata and historical versions.
 
-当前边界：不包含数据库、登录、RAG、Agent、教学资源正文生成或文件导出。
+Not included:
+
+- PPT file generation.
+- Word export.
+- Excel export.
+- Download or file export.
+- Database or authentication.
+- RAG or Agent capabilities.
 
 ## Roadmap
 
@@ -156,9 +172,15 @@ Highlights:
 - Editable Course Workspace.
 - Dashboard project management.
 
+### v0.4.0 — AI Resource Generation MVP
+
+- Lesson-level teacher lesson plan generation.
+- Slide outline generation.
+- ResourceArtifact local persistence and version management.
+- Read-only Workspace resource preview.
+
 ### Next
 
-- **Sprint 5 — AI Resource Generation:** 教案、PPT、讲义、练习和测验生成。
 - **Sprint 6 — Export Center:** 集中管理和导出课程资源。
 - **Sprint 7 — Knowledge Base / RAG:** 知识检索、来源约束和引用增强。
 
@@ -257,6 +279,7 @@ EduFlow AI/
 │   ├── features/
 │   │   ├── course-wizard/         # Course intake and draft flow
 │   │   ├── course-generation/     # AI API, schemas and blueprint result
+│   │   ├── course-resources/      # Resource generation, artifacts and read-only results
 │   │   ├── course-workspace/      # CourseProject storage, migration and editor
 │   │   └── dashboard/             # Local project management
 │   ├── tests/                     # Frontend unit and interaction tests
@@ -264,8 +287,8 @@ EduFlow AI/
 ├── backend/
 │   ├── models/                    # Pydantic request and response models
 │   ├── routers/                   # FastAPI routes
-│   ├── services/                  # Course generation and LLM providers
-│   └── prompts/                   # Versioned Course Blueprint prompts
+│   ├── services/                  # Course/resource generation and LLM providers
+│   └── prompts/                   # Versioned course and resource prompts
 ├── tests/backend/                 # Backend regression tests
 ├── assets/                        # Project screenshots and presentation assets
 ├── .env.example                   # Backend environment template
