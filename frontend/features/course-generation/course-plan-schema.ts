@@ -45,7 +45,6 @@ const lessonDetailSchema = z.object({
   lessonId: z.string(),
   teachingActivities: z.array(z.string()),
   assessmentMethod: z.string(),
-  resourceRefs: z.array(requestedResourceSchema),
 });
 
 const teachingStrategySchema = z.object({

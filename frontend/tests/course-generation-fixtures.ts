@@ -90,7 +90,6 @@ export function makeCourseResponse(
           lessonId: "L001",
           teachingActivities: ["观察重复任务"],
           assessmentMethod: "完成课堂任务",
-          resourceRefs: ["lesson_plan"],
         },
       ],
     },
@@ -98,7 +97,7 @@ export function makeCourseResponse(
       provider,
       model,
       detailMode: "detailed",
-      promptVersion: "course-blueprint-v2",
+      promptVersion: "course-blueprint-v3",
       attempts: 1,
       generatedAt: "2026-07-17T10:00:00Z",
       usage: {

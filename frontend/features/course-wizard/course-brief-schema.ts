@@ -111,8 +111,9 @@ export const courseBriefSchema = z.object({
     .max(1000, "课程总体目标不能超过 1000 个字符"),
   requestedResources: z
     .array(requestedResourceSchema)
-    .min(1, "至少选择一种课程资源")
-    .transform((values) => Array.from(new Set(values))),
+    .min(1, "至少选择一种计划后续生成的课程资源")
+    .transform((values) => Array.from(new Set(values)))
+    .describe("未来需要生成的教学资源规划需求，不代表当前生成资源正文"),
   extraRequirements: optionalText(1000, "额外要求不能超过 1000 个字符"),
 });
 

@@ -47,8 +47,10 @@ export function ResourceSelectionStep() {
           const selectedResources = field.value ?? [];
           return (
             <FormItem>
-              <FormLabel>需要生成的课程资源</FormLabel>
-              <FormDescription>至少选择一种资源，后续可在导出中心单独生成。</FormDescription>
+              <FormLabel>后续课程资源规划</FormLabel>
+              <FormDescription>
+                选择希望后续生成的教学资源类型。AI 将在课程蓝图中规划资源用途，具体资源内容将在后续资源中心单独生成。
+              </FormDescription>
               <div className="grid gap-3 pt-2 sm:grid-cols-2">
                 {RESOURCE_OPTIONS.map((resource, index) => {
                   const Icon = resourceIcons[index];

@@ -31,11 +31,11 @@ EduFlow AI 希望把这条链路收拢到一个统一工作台：先用结构化
 | 能力 | 当前实现 |
 | --- | --- |
 | 课程研发 Dashboard | 课程指标、最近课程、生成状态与最近导出的统一视图 |
-| 五步课程创建向导 | 基础信息、目标学员、课程规划与教学风格、资源选择、最终确认 |
+| 五步课程创建向导 | 基础信息、目标学员、课程规划与教学风格、后续资源规划、最终确认 |
 | 结构化需求校验 | React Hook Form 与 Zod 驱动的分步校验和错误定位 |
 | 本地草稿 | 自动保存、恢复、清除以及离开页面前持久化 |
 | 工作台联动 | 当前设备上的课程草稿自动显示在最近课程中，并可继续编辑 |
-| AI Course Blueprint | 按课程规模生成完整蓝图或模块、阶段与关键课时结构 |
+| AI Course Blueprint | 按课程规模生成完整蓝图或模块、阶段、关键课时与后续资源规划 |
 | 模型无关后端 | 统一 LLM Provider 接口，当前接入 DeepSeek，模型信息完全配置化 |
 | 结构化输出保障 | JSON Output、Pydantic 校验、重复课时检查、截断保护与一次受控重试 |
 | 会话结果恢复 | 生成结果保存在当前标签页的 sessionStorage，可刷新恢复 |
@@ -212,11 +212,11 @@ python -m pytest tests/backend
 
 - [x] **Foundation** — 前后端工程骨架、设计系统与基础质量工具
 - [x] **Course Intake** — Dashboard、五步课程创建向导、本地草稿闭环
-- [x] **AI Course Blueprint** — LLM Provider 抽象、DeepSeek 接入、课程目标、模块、课时与资源规划
-- [ ] **Course Workspace** — 课程详情、版本编辑、生成状态与资源管理
-- [ ] **Lesson Generation** — 根据稳定 lessonId 按需生成单课详细内容
-- [ ] **Resource Generation & Export** — 教案、PPT、讲义、练习、测验和课程包导出
-- [ ] **RAG Knowledge Enhancement** — 知识检索、来源约束与引用增强
+- [x] **Sprint 3 · Course Blueprint & Resource Planning** — LLM Provider 抽象、DeepSeek 接入、课程目标、模块、课时与后续资源规划
+- [ ] **Sprint 4 · Course Workspace** — 课程蓝图查看、编辑、状态与版本工作区
+- [ ] **Sprint 5 · AI Resource Generation** — 按课程蓝图生成教案、PPT、讲义、练习和测验
+- [ ] **Sprint 6 · Export Center** — 集中管理 Word、PPT、Excel 等资源导出
+- [ ] **Sprint 7 · RAG Knowledge Enhancement** — 知识检索、来源约束与引用增强
 - [ ] **Product Platform** — 数据库、登录、团队协作、权限与可观测性
 
 ## Sprint 开发记录
@@ -226,11 +226,11 @@ python -m pytest tests/backend
 | Sprint 1 | 建立可运行的产品骨架 | Next.js、FastAPI、Dashboard、设计系统、健康检查 | ✅ |
 | Sprint 2 | 跑通课程需求采集 | 五步向导、Schema 校验、错误摘要、本地草稿、Dashboard 联动 | ✅ |
 | Engineering | 提升开发环境稳定性 | 自动保存循环防护、Turbopack 切换 Webpack、回归测试 | ✅ |
-| Sprint 3 | 生成可扩展 AI 课程蓝图 | LLM Provider 抽象、DeepSeek、Prompt、结构校验、结果页与会话恢复 | ✅ |
+| Sprint 3 | 生成可扩展 AI 课程蓝图与资源规划 | LLM Provider 抽象、DeepSeek、Prompt、结构校验、资源规划、结果页与会话恢复 | ✅ |
 
 ## 当前版本边界
 
-当前版本通过已配置的后端 LLM Provider 生成课程蓝图：1–20 课时输出完整课时详情，21–50 课时输出模块、阶段、完整索引和关键课时。Dashboard 中部分课程与导出数据仍为演示数据；当前版本不包含数据库、登录、支付、RAG、团队协作、蓝图编辑或正式资源导出。
+当前版本通过已配置的后端 LLM Provider 生成课程蓝图：1–20 课时输出完整课时详情，21–50 课时输出模块、阶段、完整索引和关键课时。用户选择的资源类型仅用于规划未来资源的用途和适用范围，不会在 Sprint 3 生成 PPT、教案、讲稿、讲义、练习、测验或 Excel 文件。Dashboard 中部分课程与导出数据仍为演示数据；当前版本不包含数据库、登录、支付、RAG、团队协作、蓝图编辑或正式资源导出。
 
 ---
 

@@ -109,10 +109,10 @@ export function CourseBriefReview({ onEdit }: { onEdit: (step: number) => void }
         </dl>
       </ReviewSection>
 
-      <ReviewSection title="资源与额外要求" step={4} onEdit={onEdit}>
+      <ReviewSection title="资源规划与额外要求" step={4} onEdit={onEdit}>
         <dl className="space-y-4">
           <div>
-            <dt className="text-xs font-medium text-muted-foreground">所需资源</dt>
+            <dt className="text-xs font-medium text-muted-foreground">后续课程资源规划</dt>
             <dd className="mt-2 flex flex-wrap gap-2">
               {selectedResourceLabels.map((resource) => (
                 <Badge key={resource} variant="outline">{resource}</Badge>

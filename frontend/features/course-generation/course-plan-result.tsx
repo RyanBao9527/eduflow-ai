@@ -37,6 +37,44 @@ const resourceLabels = Object.fromEntries(
   RESOURCE_OPTIONS.map((resource) => [resource.value, resource.label]),
 ) as Record<string, string>;
 
+type ResourcePlanItem = CoursePlan["resourcePlan"][number];
+
+function getResourceScope(plan: CoursePlan, resource: ResourcePlanItem) {
+  const explicitLessonIds = new Set(resource.lessonIds);
+  const selectedModuleIds = new Set(resource.moduleIds);
+
+  plan.lessonIndex.forEach((lesson) => {
+    if (explicitLessonIds.has(lesson.lessonId)) selectedModuleIds.add(lesson.moduleId);
+  });
+
+  const lessonIds = plan.lessonIndex
+    .filter((lesson) =>
+      explicitLessonIds.size > 0
+        ? explicitLessonIds.has(lesson.lessonId)
+        : selectedModuleIds.has(lesson.moduleId),
+    )
+    .map((lesson) => lesson.lessonId);
+  const modules = plan.modules
+    .filter((module) => selectedModuleIds.has(module.moduleId))
+    .map((module) => `${module.moduleId} · ${module.title}`);
+  const phases = plan.detailMode === "balanced"
+    ? plan.phases
+        .filter((phase) =>
+          phase.moduleIds.some((moduleId) => selectedModuleIds.has(moduleId))
+          || phase.lessonIds.some((lessonId) => lessonIds.includes(lessonId)),
+        )
+        .map((phase) => `${phase.phaseId} · ${phase.title}`)
+    : [];
+
+  return { lessonIds, modules, phases };
+}
+
+function formatLessonScope(lessonIds: string[]) {
+  if (lessonIds.length === 0) return "适用于全课程";
+  if (lessonIds.length <= 8) return lessonIds.join("、");
+  return `${lessonIds.slice(0, 6).join("、")} 等 ${lessonIds.length} 个课时`;
+}
+
 function SectionTitle({ icon: Icon, children }: { icon: typeof Target; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
@@ -207,17 +245,34 @@ export function CoursePlanResult() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle><SectionTitle icon={CheckCircle2}>资源规划</SectionTitle></CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle><SectionTitle icon={CheckCircle2}>后续课程资源规划</SectionTitle></CardTitle>
+          <p className="text-sm leading-6 text-muted-foreground">
+            以下内容仅为资源用途与适用范围规划，具体资源将在后续资源中心单独生成。
+          </p>
+        </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          {plan.resourcePlan.map((resource) => (
-            <div key={resource.resourceType} className="rounded-xl border p-4">
-              <h3 className="text-sm font-semibold text-[#273149]">{resourceLabels[resource.resourceType] ?? resource.resourceType}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{resource.purpose}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                范围：{[...resource.moduleIds, ...resource.lessonIds].join("、")}
-              </p>
-            </div>
-          ))}
+          {plan.resourcePlan.map((resource) => {
+            const scope = getResourceScope(plan, resource);
+            return (
+              <div key={resource.resourceType} className="rounded-xl border p-4">
+                <h3 className="text-sm font-semibold text-[#273149]">
+                  {resourceLabels[resource.resourceType] ?? resource.resourceType}
+                </h3>
+                <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                  <p><span className="font-semibold text-[#44506a]">用途：</span>{resource.purpose}</p>
+                  {scope.phases.length > 0 && (
+                    <p><span className="font-semibold text-[#44506a]">关联课程阶段：</span>{scope.phases.join("、")}</p>
+                  )}
+                  <p>
+                    <span className="font-semibold text-[#44506a]">关联模块：</span>
+                    {scope.modules.length > 0 ? scope.modules.join("、") : "课程整体"}
+                  </p>
+                  <p><span className="font-semibold text-[#44506a]">适用课时：</span>{formatLessonScope(scope.lessonIds)}</p>
+                </div>
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -307,11 +362,6 @@ function LessonDetailView({ detail }: { detail: LessonDetail }) {
       <div>
         <p className="text-xs font-semibold text-muted-foreground">评估方式</p>
         <p className="mt-2 text-sm leading-6">{detail.assessmentMethod}</p>
-        {detail.resourceRefs.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {detail.resourceRefs.map((resource) => <Badge key={resource} variant="outline">{resourceLabels[resource] ?? resource}</Badge>)}
-          </div>
-        )}
       </div>
     </div>
   );

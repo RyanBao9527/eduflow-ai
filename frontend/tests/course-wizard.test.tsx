@@ -79,6 +79,26 @@ describe("CourseWizard", () => {
     expect(screen.getByRole("heading", { name: "课程规划与教学风格" })).toBeInTheDocument();
   });
 
+  it("describes resource choices as future planning", async () => {
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 4,
+      values: { requestedResources: ["lesson_plan"] },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    expect(await screen.findByRole("heading", { name: "资源规划" })).toBeInTheDocument();
+    expect(screen.getByText("后续课程资源规划")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "选择希望后续生成的教学资源类型。AI 将在课程蓝图中规划资源用途，具体资源内容将在后续资源中心单独生成。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Excel课程规划表")).toBeInTheDocument();
+    expect(screen.getByText("课时、目标与资源规划")).toBeInTheDocument();
+  });
+
   it("asks for confirmation before clearing the draft", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);

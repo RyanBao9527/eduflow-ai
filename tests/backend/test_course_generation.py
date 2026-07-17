@@ -8,6 +8,9 @@ from backend.config import Settings
 from backend.main import app
 from backend.models.course_generation import CourseBrief
 from backend.prompts.course_blueprint import (
+    PROMPT_VERSION,
+    SYSTEM_PROMPT,
+    build_structured_output_request,
     key_lesson_count,
     max_output_tokens,
     select_detail_mode,
@@ -166,7 +169,6 @@ def make_plan(lesson_count: int) -> dict[str, Any]:
                 "lessonId": lesson_id,
                 "teachingActivities": [f"第{number}课活动"],
                 "assessmentMethod": f"第{number}课评估",
-                "resourceRefs": ["lesson_plan"],
             }
             for number, lesson_id in enumerate(lesson_ids, start=1)
         ]
@@ -192,7 +194,6 @@ def make_plan(lesson_count: int) -> dict[str, Any]:
             "lessonId": lesson_id,
             "teachingActivities": [f"{lesson_id}关键活动"],
             "assessmentMethod": f"{lesson_id}关键评估",
-            "resourceRefs": ["lesson_plan"],
         }
         for lesson_id in key_ids
     ]
@@ -212,6 +213,23 @@ def test_token_budget_is_bounded() -> None:
     assert max_output_tokens(20, "detailed", 8000) == 8000
     assert max_output_tokens(21, "balanced", 8000) == 5050
     assert max_output_tokens(50, "balanced", 8000) == 6500
+
+
+def test_prompt_treats_requested_resources_as_planning_only() -> None:
+    request = build_structured_output_request(
+        brief=make_brief(1),
+        request_id="request-1",
+        configured_token_limit=8000,
+        temperature=0.2,
+    )
+
+    assert PROMPT_VERSION == "course-blueprint-v3"
+    assert "不代表当前需要生成资源正文" in SYSTEM_PROMPT
+    assert "不要生成任何完整教学资源内容" in SYSTEM_PROMPT
+    assert "只输出资源规划信息" in SYSTEM_PROMPT
+    assert "resourcePlan 不得包含任何资源正文或文件内容" in request.user_prompt
+    lesson_detail_schema = request.json_schema["$defs"]["LessonDetail"]
+    assert "resourceRefs" not in lesson_detail_schema["properties"]
 
 
 @pytest.mark.anyio

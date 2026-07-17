@@ -43,7 +43,14 @@ class CourseBrief(ApiModel):
     difficulty: Difficulty
     teaching_styles: list[str] = Field(min_length=1, max_length=5)
     overall_goal: str = Field(min_length=5, max_length=1000)
-    requested_resources: list[ResourceType] = Field(min_length=1, max_length=7)
+    requested_resources: list[ResourceType] = Field(
+        min_length=1,
+        max_length=7,
+        description=(
+            "Future teaching resource planning needs. These values do not request "
+            "resource content in the current generation."
+        ),
+    )
     extra_requirements: str | None = Field(default=None, max_length=1000)
 
 
@@ -95,7 +102,6 @@ class LessonDetail(ApiModel):
     lesson_id: str = Field(pattern=r"^L[0-9]{3}$")
     teaching_activities: list[str] = Field(min_length=1, max_length=4)
     assessment_method: str = Field(min_length=2, max_length=200)
-    resource_refs: list[ResourceType] = Field(default_factory=list, max_length=7)
 
 
 class TeachingStrategy(ApiModel):
@@ -112,9 +118,21 @@ class AssessmentPlan(ApiModel):
 
 class ResourcePlanItem(ApiModel):
     resource_type: ResourceType
-    purpose: str = Field(min_length=2, max_length=300)
-    module_ids: list[str] = Field(default_factory=list, max_length=10)
-    lesson_ids: list[str] = Field(default_factory=list, max_length=50)
+    purpose: str = Field(
+        min_length=2,
+        max_length=300,
+        description="Planned use of the future resource, without resource body content.",
+    )
+    module_ids: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Course modules where the future resource is expected to be used.",
+    )
+    lesson_ids: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Specific lessons where the future resource is expected to be used.",
+    )
 
 
 class CoursePlanBase(ApiModel):
