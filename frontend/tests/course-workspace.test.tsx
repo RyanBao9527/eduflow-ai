@@ -58,7 +58,9 @@ describe("CourseWorkspace", () => {
     });
     expect(saved.coursePlan?.modules.map((module) => module.moduleId)).toEqual(originalModuleIds);
     expect(saved.coursePlan?.lessonIndex.map((lesson) => lesson.lessonId)).toEqual(originalLessonIds);
-    expect(screen.queryByRole("button", { name: /生成|下载|导出/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生成教师教案" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生成PPT结构" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /下载|导出/ })).not.toBeInTheDocument();
   });
 
   it("cancels local changes without writing them", async () => {
