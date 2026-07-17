@@ -24,14 +24,14 @@ export function TargetLearnersStep() {
         name="targetLearners"
         render={({ field }) => (
           <FormItem className="sm:col-span-2">
-            <FormLabel>目标学员</FormLabel>
+            <FormLabel>学员类型</FormLabel>
             <FormControl>
               <Textarea
-                placeholder="例如：小学三年级学生，已经掌握整数四则运算。"
+                placeholder="例如：小学生 / 大学生 / 教师 / 企业员工 / 职场人士"
                 {...field}
               />
             </FormControl>
-            <FormDescription>说明学员群体及与本课程相关的典型特征。</FormDescription>
+            <FormDescription>描述课程面向的人群。</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -42,10 +42,15 @@ export function TargetLearnersStep() {
         name="ageOrGrade"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>年龄或年级</FormLabel>
+            <FormLabel>年龄/教育阶段</FormLabel>
             <FormControl>
-              <Input placeholder="例如：三年级 / 10–12 岁" autoComplete="off" {...field} />
+              <Input
+                placeholder="例如：8-10岁 / 小学高年级 / 初中阶段 / 成人"
+                autoComplete="off"
+                {...field}
+              />
             </FormControl>
+            <FormDescription>填写适用的年龄范围、年级或教育阶段。</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -58,8 +63,13 @@ export function TargetLearnersStep() {
           <FormItem>
             <FormLabel>学员基础</FormLabel>
             <FormControl>
-              <Input placeholder="例如：零基础 / 有基础" autoComplete="off" {...field} />
+              <Input
+                placeholder="例如：零基础 / 有相关学习经验 / 已掌握基础知识 / 有项目实践经验"
+                autoComplete="off"
+                {...field}
+              />
             </FormControl>
+            <FormDescription>说明学员已有的相关知识或实践经验。</FormDescription>
             <FormMessage />
           </FormItem>
         )}

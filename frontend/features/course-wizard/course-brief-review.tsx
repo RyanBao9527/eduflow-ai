@@ -72,12 +72,12 @@ export function CourseBriefReview({ onEdit }: { onEdit: (step: number) => void }
         </dl>
       </ReviewSection>
 
-      <ReviewSection title="目标学员" step={2} onEdit={onEdit}>
+      <ReviewSection title="学员类型" step={2} onEdit={onEdit}>
         <dl className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Detail label="目标学员">{values.targetLearners}</Detail>
+            <Detail label="学员类型">{values.targetLearners}</Detail>
           </div>
-          <Detail label="年龄或年级">{values.ageOrGrade}</Detail>
+          <Detail label="年龄/教育阶段">{values.ageOrGrade}</Detail>
           <Detail label="学员基础">{values.learnerLevel}</Detail>
           <Detail label="班级人数">
             {values.classSize ? `${values.classSize} 人` : "未填写"}

@@ -38,7 +38,7 @@ export const RESOURCE_OPTIONS = [
 
 export const WIZARD_STEPS = [
   { number: 1, title: "基础信息", shortTitle: "课程" },
-  { number: 2, title: "目标学员", shortTitle: "学员" },
+  { number: 2, title: "学员类型", shortTitle: "学员" },
   { number: 3, title: "课程规划与教学风格", shortTitle: "规划" },
   { number: 4, title: "资源规划", shortTitle: "资源" },
   { number: 5, title: "确认课程需求", shortTitle: "确认" },

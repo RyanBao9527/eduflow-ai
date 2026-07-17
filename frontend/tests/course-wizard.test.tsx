@@ -37,7 +37,7 @@ describe("CourseWizard", () => {
 
     expect(await screen.findByText("请检查当前步骤")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "基础信息" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "目标学员" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "学员类型" })).not.toBeInTheDocument();
   });
 
   it("restores a valid partial draft and its saved step", async () => {
@@ -55,7 +55,20 @@ describe("CourseWizard", () => {
 
     render(<CourseWizard />);
 
-    expect(await screen.findByRole("heading", { name: "目标学员" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "学员类型" })).toBeInTheDocument();
+    expect(screen.getByLabelText("学员类型")).toHaveAttribute(
+      "placeholder",
+      "例如：小学生 / 大学生 / 教师 / 企业员工 / 职场人士",
+    );
+    expect(screen.getByText("描述课程面向的人群。")).toBeInTheDocument();
+    expect(screen.getByLabelText("年龄/教育阶段")).toHaveAttribute(
+      "placeholder",
+      "例如：8-10岁 / 小学高年级 / 初中阶段 / 成人",
+    );
+    expect(screen.getByLabelText("学员基础")).toHaveAttribute(
+      "placeholder",
+      "例如：零基础 / 有相关学习经验 / 已掌握基础知识 / 有项目实践经验",
+    );
     expect(screen.getByDisplayValue("10–12 岁零基础学生")).toBeInTheDocument();
   });
 
@@ -133,7 +146,7 @@ describe("CourseWizard", () => {
 
     render(<CourseWizard />);
 
-    await screen.findByRole("heading", { name: "目标学员" });
+    await screen.findByRole("heading", { name: "学员类型" });
     await user.click(screen.getByRole("button", { name: "清除草稿" }));
 
     expect(confirmSpy).toHaveBeenCalledOnce();

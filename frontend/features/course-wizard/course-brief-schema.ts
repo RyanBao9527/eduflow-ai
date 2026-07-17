@@ -62,13 +62,13 @@ export const courseBriefSchema = z.object({
   targetLearners: z
     .string()
     .trim()
-    .min(2, "请描述目标学员")
-    .max(200, "目标学员描述不能超过 200 个字符"),
+    .min(2, "请描述学员类型")
+    .max(200, "学员类型描述不能超过 200 个字符"),
   ageOrGrade: z
     .string()
     .trim()
-    .min(1, "请输入年龄或年级")
-    .max(50, "年龄或年级不能超过 50 个字符"),
+    .min(1, "请输入年龄/教育阶段")
+    .max(50, "年龄/教育阶段不能超过 50 个字符"),
   learnerLevel: z
     .string()
     .trim()
