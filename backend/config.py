@@ -26,17 +26,45 @@ class Settings(BaseSettings):
         alias="CORS_ORIGINS",
     )
 
-    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
-    openai_base_url: str = Field(
-        default="https://api.deepseek.com",
-        alias="OPENAI_BASE_URL",
-    )
-    openai_model: str = Field(default="", alias="OPENAI_MODEL")
-    request_timeout: int = Field(default=180, ge=1, alias="REQUEST_TIMEOUT")
-    max_context_length: int | None = Field(
-        default=None,
+    llm_provider: str = Field(default="", alias="LLM_PROVIDER")
+    llm_model: str = Field(default="", alias="LLM_MODEL")
+    llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_request_timeout: int = Field(default=120, ge=1, alias="LLM_REQUEST_TIMEOUT")
+    llm_max_output_tokens: int = Field(
+        default=8000,
         ge=1,
-        alias="MAX_CONTEXT_LENGTH",
+        alias="LLM_MAX_OUTPUT_TOKENS",
+    )
+    llm_temperature: float = Field(
+        default=0.2,
+        ge=0,
+        le=2,
+        alias="LLM_TEMPERATURE",
+    )
+    max_generated_json_bytes: int = Field(
+        default=262_144,
+        ge=1024,
+        alias="MAX_GENERATED_JSON_BYTES",
+    )
+    llm_input_cost_per_1m: float | None = Field(
+        default=None,
+        ge=0,
+        alias="LLM_INPUT_COST_PER_1M",
+    )
+    llm_cache_hit_input_cost_per_1m: float | None = Field(
+        default=None,
+        ge=0,
+        alias="LLM_CACHE_HIT_INPUT_COST_PER_1M",
+    )
+    llm_output_cost_per_1m: float | None = Field(
+        default=None,
+        ge=0,
+        alias="LLM_OUTPUT_COST_PER_1M",
+    )
+    llm_pricing_snapshot: str | None = Field(
+        default=None,
+        alias="LLM_PRICING_SNAPSHOT",
     )
     temp_dir: str = Field(default="./temp", alias="TEMP_DIR")
 
