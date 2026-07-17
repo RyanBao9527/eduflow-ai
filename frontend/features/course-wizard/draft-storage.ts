@@ -9,7 +9,7 @@ export const COURSE_WIZARD_DRAFT_KEY = "eduflow.course-wizard.draft.v1";
 export const COURSE_WIZARD_DRAFT_VERSION = 1 as const;
 export const COURSE_WIZARD_SAVE_DELAY_MS = 500;
 
-const draftValuesSchema = z
+export const draftValuesSchema = z
   .object({
     courseTitle: z.string().optional(),
     subject: z.string().optional(),
@@ -95,7 +95,11 @@ export function saveCourseWizardDraft(
 }
 
 export function clearCourseWizardDraft(storage: Storage) {
-  storage.removeItem(COURSE_WIZARD_DRAFT_KEY);
+  try {
+    storage.removeItem(COURSE_WIZARD_DRAFT_KEY);
+  } catch {
+    // Keep the form usable when browser storage access is restricted.
+  }
 }
 
 export function hasMeaningfulDraftValues(values: Partial<CourseBriefFormValues>) {

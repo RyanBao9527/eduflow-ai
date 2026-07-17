@@ -100,7 +100,7 @@ export const coursePlanSchema = z.discriminatedUnion("detailMode", [
   balancedCoursePlanSchema,
 ]);
 
-const tokenUsageSchema = z.object({
+export const tokenUsageSchema = z.object({
   promptTokens: z.number().int().nonnegative(),
   promptCacheHitTokens: z.number().int().nonnegative(),
   promptCacheMissTokens: z.number().int().nonnegative(),
@@ -110,20 +110,22 @@ const tokenUsageSchema = z.object({
   pricingSnapshot: z.string().nullable().optional(),
 });
 
+export const generationMetadataSchema = z.object({
+  provider: z.string().min(1),
+  model: z.string().min(1),
+  detailMode: z.enum(["detailed", "balanced"]),
+  promptVersion: z.string(),
+  attempts: z.number().int().min(1).max(2),
+  generatedAt: z.string(),
+  usage: tokenUsageSchema,
+});
+
 export const coursePlanGenerateResponseSchema = z.object({
   schemaVersion: z.literal("1.0"),
   requestId: z.string(),
   status: z.literal("succeeded"),
   coursePlan: coursePlanSchema,
-  generation: z.object({
-    provider: z.string().min(1),
-    model: z.string().min(1),
-    detailMode: z.enum(["detailed", "balanced"]),
-    promptVersion: z.string(),
-    attempts: z.number().int().min(1).max(2),
-    generatedAt: z.string(),
-    usage: tokenUsageSchema,
-  }),
+  generation: generationMetadataSchema,
 });
 
 export const storedCourseGenerationSchema = z.object({
@@ -135,5 +137,7 @@ export const storedCourseGenerationSchema = z.object({
 
 export type CoursePlan = z.infer<typeof coursePlanSchema>;
 export type LessonDetail = z.infer<typeof lessonDetailSchema>;
+export type GenerationMetadata = z.infer<typeof generationMetadataSchema>;
+export type TokenUsage = z.infer<typeof tokenUsageSchema>;
 export type CoursePlanGenerateResponse = z.infer<typeof coursePlanGenerateResponseSchema>;
 export type StoredCourseGeneration = z.infer<typeof storedCourseGenerationSchema>;
