@@ -8,18 +8,14 @@ import type { CourseStatus, CourseSummary } from "@/types/course";
 
 const statusLabel: Record<CourseStatus, string> = {
   draft: "草稿",
-  submitted: "需求已保存",
-  generating: "生成中",
-  ready: "已就绪",
-  error: "失败",
+  generated: "已生成",
+  editing: "已编辑",
 };
 
 const statusStyle: Record<CourseStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
-  submitted: "bg-indigo-50 text-indigo-700",
-  generating: "bg-blue-50 text-blue-700",
-  ready: "bg-emerald-50 text-emerald-700",
-  error: "bg-red-50 text-red-700",
+  generated: "bg-emerald-50 text-emerald-700",
+  editing: "bg-indigo-50 text-indigo-700",
 };
 
 const accentStyle = {
@@ -63,24 +59,13 @@ export function CourseCard({ course }: CourseCardProps) {
             <Clock3 className="size-3.5" />
             {course.updatedAt}
           </span>
-          {course.id === "course-local-draft" ? (
-            <Link
-              href={course.status === "ready" ? "/courses/result" : "/courses/new"}
-              className="flex items-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-[#2949b6]"
-            >
-              {course.status === "ready" ? "查看蓝图" : "继续编辑"}
-              <ArrowUpRight className="size-3.5" />
-            </Link>
-          ) : (
-            <button
-              type="button"
-              className="flex items-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-[#2949b6]"
-              title="Workspace 将在后续 Sprint 开放"
-            >
-              打开课程
-              <ArrowUpRight className="size-3.5" />
-            </button>
-          )}
+          <Link
+            href={course.href}
+            className="flex items-center gap-1 text-xs font-semibold text-primary transition-colors hover:text-[#2949b6]"
+          >
+            {course.actionLabel}
+            <ArrowUpRight className="size-3.5" />
+          </Link>
         </div>
       </CardContent>
     </Card>

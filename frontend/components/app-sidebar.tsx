@@ -4,7 +4,6 @@ import {
   BookOpenText,
   ChevronLeft,
   ChevronRight,
-  FileArchive,
   LayoutDashboard,
   Plus,
   Sparkles,
@@ -16,9 +15,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
-  { label: "工作台", icon: LayoutDashboard, active: true },
-  { label: "我的课程", icon: BookOpenText, active: false },
-  { label: "导出记录", icon: FileArchive, active: false },
+  { label: "工作台", icon: LayoutDashboard, href: "/dashboard" },
+  { label: "我的课程", icon: BookOpenText, href: "/dashboard#course-projects" },
 ];
 
 export function AppSidebar() {
@@ -70,21 +68,19 @@ export function AppSidebar() {
         </p>
         <div className="space-y-1">
           {navigationItems.map((item) => (
-            <button
+            <Link
               key={item.label}
-              type="button"
               title={item.label}
+              href={item.href}
               className={cn(
                 "flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium transition-colors",
-                item.active
-                  ? "bg-white/12 text-white"
-                  : "text-white/58 hover:bg-white/7 hover:text-white",
+                "text-white/70 hover:bg-white/10 hover:text-white",
                 collapsed && "justify-center px-0",
               )}
             >
               <item.icon className="size-[18px] shrink-0" aria-hidden="true" />
               {!collapsed && item.label}
-            </button>
+            </Link>
           ))}
         </div>
       </nav>
@@ -92,9 +88,9 @@ export function AppSidebar() {
       <div className="border-t border-white/10 p-3">
         {!collapsed && (
           <div className="mb-3 rounded-xl bg-white/6 p-3">
-            <p className="text-xs font-semibold text-white/80">Sprint 2</p>
+            <p className="text-xs font-semibold text-white/80">Sprint 4</p>
             <p className="mt-1 text-[11px] leading-5 text-white/45">
-              五步课程向导已开放，AI 生成功能将在下一 Sprint 接入。
+              课程项目可在当前设备保存、打开并持续编辑。
             </p>
           </div>
         )}

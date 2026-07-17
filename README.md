@@ -6,7 +6,7 @@
 
 把零散的课程想法整理成结构化需求，并逐步推进到教案、讲义、课件、练习与完整课程包。
 
-![Version](https://img.shields.io/badge/version-v0.1-3157d5)
+![Version](https://img.shields.io/badge/version-v0.2.1-3157d5)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> EduFlow AI 当前处于早期产品验证阶段。课程工作台、五步需求向导和 AI Course Blueprint 已形成闭环；数据库持久化、课程编辑与资源导出仍在 Roadmap 中。
+> EduFlow AI 当前处于早期产品验证阶段。五步需求向导、AI Course Blueprint 与本地 Course Workspace 已形成闭环；跨设备数据库持久化、教学资源生成与导出仍在 Roadmap 中。
 
 ## 产品背景
 
@@ -30,15 +30,15 @@ EduFlow AI 希望把这条链路收拢到一个统一工作台：先用结构化
 
 | 能力 | 当前实现 |
 | --- | --- |
-| 课程研发 Dashboard | 课程指标、最近课程、生成状态与最近导出的统一视图 |
+| 课程研发 Dashboard | 当前设备上的课程项目列表、状态统计与继续操作入口 |
 | 五步课程创建向导 | 基础信息、目标学员、课程规划与教学风格、后续资源规划、最终确认 |
 | 结构化需求校验 | React Hook Form 与 Zod 驱动的分步校验和错误定位 |
-| 本地草稿 | 自动保存、恢复、清除以及离开页面前持久化 |
-| 工作台联动 | 当前设备上的课程草稿自动显示在最近课程中，并可继续编辑 |
+| 版本化本地项目 | 使用 `schemaVersion: "1.0"` 保存多个草稿、蓝图与人工编辑结果 |
+| Course Workspace | 保存并再次打开课程项目，编辑标题、目标、模块名称和课时文本 |
 | AI Course Blueprint | 按课程规模生成完整蓝图或模块、阶段、关键课时与后续资源规划 |
 | 模型无关后端 | 统一 LLM Provider 接口，当前接入 DeepSeek，模型信息完全配置化 |
 | 结构化输出保障 | JSON Output、Pydantic 校验、重复课时检查、截断保护与一次受控重试 |
-| 会话结果恢复 | 生成结果保存在当前标签页的 sessionStorage，可刷新恢复 |
+| 遗留数据迁移 | 将旧 localStorage 草稿与 sessionStorage 蓝图安全迁移到 CourseProject Store |
 | API 基础设施 | FastAPI 应用工厂、环境配置、CORS、健康检查与课程生成接口 |
 | 工程质量 | Vitest、Testing Library、Pytest、ESLint 与生产构建检查 |
 
@@ -50,9 +50,9 @@ EduFlow AI 希望把这条链路收拢到一个统一工作台：先用结构化
 | :---: | :---: |
 | **截图占位**<br><sub>`assets/screenshots/dashboard.png`</sub> | **截图占位**<br><sub>`assets/screenshots/course-wizard.png`</sub> |
 
-| Course Brief Review | Responsive Experience |
+| Course Blueprint | Course Workspace |
 | :---: | :---: |
-| **截图占位**<br><sub>`assets/screenshots/course-review.png`</sub> | **截图占位**<br><sub>`assets/screenshots/mobile.png`</sub> |
+| **截图占位**<br><sub>`assets/screenshots/course-blueprint.png`</sub> | **截图占位**<br><sub>`assets/screenshots/course-workspace.png`</sub> |
 
 ## 技术架构
 
@@ -61,8 +61,11 @@ flowchart LR
     U["教师 / 课程研发团队"] --> W["Next.js Web App"]
     W --> D["Dashboard"]
     W --> C["Course Creation Wizard"]
+    W --> CW["Course Workspace"]
     C --> V["React Hook Form + Zod"]
-    C --> L["localStorage / sessionStorage"]
+    C --> L["Versioned CourseProject Store"]
+    D --> L
+    CW --> L
     W --> A["FastAPI Backend"]
     A --> P["Pydantic Settings"]
     A --> H["Health API"]
@@ -74,7 +77,7 @@ flowchart LR
     A -. "Future" .-> E["Course Resource Exporters"]
 ```
 
-当前版本采用前后端分离结构：Next.js 承担产品界面、本地草稿和会话结果体验；FastAPI 负责课程蓝图 Prompt、模型调用和结构校验。课程业务只依赖统一结构化输出接口，不绑定具体模型供应商。图中的虚线能力属于后续版本规划。
+当前版本采用前后端分离结构：Next.js 承担产品界面、版本化本地课程项目和 Workspace 编辑体验；FastAPI 负责课程蓝图 Prompt、模型调用和结构校验。课程业务只依赖统一结构化输出接口，不绑定具体模型供应商。图中的虚线能力属于后续版本规划。
 
 ## 技术栈
 
@@ -101,6 +104,7 @@ EduFlow AI/
 │   ├── features/
 │   │   ├── course-wizard/         # 课程创建向导、校验与草稿逻辑
 │   │   ├── course-generation/     # AI 请求、结果 Schema、会话存储与蓝图视图
+│   │   ├── course-workspace/      # CourseProject 存储、迁移与可编辑工作台
 │   │   └── dashboard/             # 工作台与课程摘要
 │   ├── tests/                     # 前端单元与交互测试
 │   └── types/                     # 共享 TypeScript 类型
@@ -145,7 +149,8 @@ pnpm dev
 
 - Dashboard：`http://localhost:3000/dashboard`
 - 新建课程：`http://localhost:3000/courses/new`
-- 课程蓝图：`http://localhost:3000/courses/result`（需先在当前标签页完成生成）
+- 课程蓝图：`http://localhost:3000/courses/result?projectId={id}`（需先完成生成）
+- 课程工作台：`http://localhost:3000/courses/{id}`（需先保存课程项目）
 
 ### 3. 启动后端
 
@@ -206,14 +211,14 @@ source .venv/bin/activate
 python -m pytest tests/backend
 ```
 
-当前自动化测试覆盖课程需求 Schema、向导草稿、课程规模边界、LLM Factory、DeepSeek 错误映射、结构化蓝图校验、Token 预算、API 客户端、sessionStorage 恢复、结果页与 Dashboard 状态。
+当前自动化测试覆盖课程需求 Schema、向导草稿、CourseProject 存储与迁移、Workspace 编辑保存、Dashboard 恢复路径、课程规模边界、LLM Factory、DeepSeek 错误映射、结构化蓝图校验、Token 预算、API 客户端和结果页。
 
 ## Roadmap
 
 - [x] **Foundation** — 前后端工程骨架、设计系统与基础质量工具
 - [x] **Course Intake** — Dashboard、五步课程创建向导、本地草稿闭环
 - [x] **Sprint 3 · Course Blueprint & Resource Planning** — LLM Provider 抽象、DeepSeek 接入、课程目标、模块、课时与后续资源规划
-- [ ] **Sprint 4 · Course Workspace** — 课程蓝图查看、编辑、状态与版本工作区
+- [x] **Sprint 4 · Course Workspace** — 多项目本地持久化、Dashboard 项目列表、蓝图保存、再次打开与限定字段编辑
 - [ ] **Sprint 5 · AI Resource Generation** — 按课程蓝图生成教案、PPT、讲义、练习和测验
 - [ ] **Sprint 6 · Export Center** — 集中管理 Word、PPT、Excel 等资源导出
 - [ ] **Sprint 7 · RAG Knowledge Enhancement** — 知识检索、来源约束与引用增强
@@ -227,10 +232,11 @@ python -m pytest tests/backend
 | Sprint 2 | 跑通课程需求采集 | 五步向导、Schema 校验、错误摘要、本地草稿、Dashboard 联动 | ✅ |
 | Engineering | 提升开发环境稳定性 | 自动保存循环防护、Turbopack 切换 Webpack、回归测试 | ✅ |
 | Sprint 3 | 生成可扩展 AI 课程蓝图与资源规划 | LLM Provider 抽象、DeepSeek、Prompt、结构校验、资源规划、结果页与会话恢复 | ✅ |
+| Sprint 4 | 将 AI 蓝图升级为可持续管理的课程资产 | CourseProject Store、遗留迁移、项目 Dashboard、可编辑 Workspace 与离开保护 | ✅ |
 
 ## 当前版本边界
 
-当前版本通过已配置的后端 LLM Provider 生成课程蓝图：1–20 课时输出完整课时详情，21–50 课时输出模块、阶段、完整索引和关键课时。用户选择的资源类型仅用于规划未来资源的用途和适用范围，不会在 Sprint 3 生成 PPT、教案、讲稿、讲义、练习、测验或 Excel 文件。Dashboard 中部分课程与导出数据仍为演示数据；当前版本不包含数据库、登录、支付、RAG、团队协作、蓝图编辑或正式资源导出。
+当前版本通过已配置的后端 LLM Provider 生成课程蓝图：1–20 课时输出完整课时详情，21–50 课时输出模块、阶段、完整索引和关键课时。课程项目保存在当前浏览器，支持标题、总体目标、模块名称、课时标题和课时描述编辑，不支持结构 ID、数量或顺序修改。用户选择的资源类型仅用于规划未来用途和适用范围；当前版本不包含数据库、登录、支付、RAG、团队协作、资源生成或文件导出。
 
 ---
 

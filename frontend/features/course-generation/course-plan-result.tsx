@@ -3,7 +3,6 @@
 import {
   ArrowLeft,
   BookOpen,
-  CheckCircle2,
   Clock3,
   Layers3,
   ListChecks,
@@ -22,57 +21,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CourseGenerationApiError, generateCoursePlan } from "@/features/course-generation/course-generation-api";
 import { CourseGenerationError } from "@/features/course-generation/course-generation-error";
 import { CourseGenerationLoading } from "@/features/course-generation/course-generation-loading";
-import {
-  loadCourseGeneration,
-  saveCourseGeneration,
-} from "@/features/course-generation/course-generation-storage";
 import type {
   CoursePlan,
+  CoursePlanGenerateResponse,
   LessonDetail,
   StoredCourseGeneration,
 } from "@/features/course-generation/course-plan-schema";
-import { RESOURCE_OPTIONS } from "@/features/course-wizard/constants";
+import {
+  clearCourseGeneration,
+  loadCourseGeneration,
+  saveCourseGeneration,
+} from "@/features/course-generation/course-generation-storage";
+import { courseBriefSchema } from "@/features/course-wizard/course-brief-schema";
+import { ResourcePlanPanel } from "@/features/course-workspace/resource-plan-panel";
+import { migrateLegacyCourseProject } from "@/features/course-workspace/course-project-migration";
+import {
+  attachGenerationToProject,
+  finalizeCourseProject,
+  getCourseProject,
+} from "@/features/course-workspace/course-project-storage";
+import {
+  courseProjectSchema,
+  type CourseProject,
+} from "@/features/course-workspace/course-project-schema";
 
-const resourceLabels = Object.fromEntries(
-  RESOURCE_OPTIONS.map((resource) => [resource.value, resource.label]),
-) as Record<string, string>;
-
-type ResourcePlanItem = CoursePlan["resourcePlan"][number];
-
-function getResourceScope(plan: CoursePlan, resource: ResourcePlanItem) {
-  const explicitLessonIds = new Set(resource.lessonIds);
-  const selectedModuleIds = new Set(resource.moduleIds);
-
-  plan.lessonIndex.forEach((lesson) => {
-    if (explicitLessonIds.has(lesson.lessonId)) selectedModuleIds.add(lesson.moduleId);
+function mergeGenerationIntoProject(
+  project: CourseProject,
+  stored: StoredCourseGeneration,
+) {
+  return courseProjectSchema.parse({
+    ...project,
+    title: stored.brief.courseTitle,
+    status: "draft",
+    wizardStep: 5,
+    courseBrief: stored.brief,
+    coursePlan: stored.response.coursePlan,
+    generation: {
+      requestId: stored.response.requestId,
+      ...stored.response.generation,
+    },
   });
-
-  const lessonIds = plan.lessonIndex
-    .filter((lesson) =>
-      explicitLessonIds.size > 0
-        ? explicitLessonIds.has(lesson.lessonId)
-        : selectedModuleIds.has(lesson.moduleId),
-    )
-    .map((lesson) => lesson.lessonId);
-  const modules = plan.modules
-    .filter((module) => selectedModuleIds.has(module.moduleId))
-    .map((module) => `${module.moduleId} · ${module.title}`);
-  const phases = plan.detailMode === "balanced"
-    ? plan.phases
-        .filter((phase) =>
-          phase.moduleIds.some((moduleId) => selectedModuleIds.has(moduleId))
-          || phase.lessonIds.some((lessonId) => lessonIds.includes(lessonId)),
-        )
-        .map((phase) => `${phase.phaseId} · ${phase.title}`)
-    : [];
-
-  return { lessonIds, modules, phases };
 }
 
-function formatLessonScope(lessonIds: string[]) {
-  if (lessonIds.length === 0) return "适用于全课程";
-  if (lessonIds.length <= 8) return lessonIds.join("、");
-  return `${lessonIds.slice(0, 6).join("、")} 等 ${lessonIds.length} 个课时`;
+function responseFromProject(project: CourseProject): CoursePlanGenerateResponse | null {
+  if (!project.coursePlan || !project.generation) return null;
+  const { requestId, ...generation } = project.generation;
+  return {
+    schemaVersion: "1.0",
+    requestId,
+    status: "succeeded",
+    coursePlan: project.coursePlan,
+    generation,
+  };
 }
 
 function SectionTitle({ icon: Icon, children }: { icon: typeof Target; children: React.ReactNode }) {
@@ -88,21 +88,36 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof Target; children:
 
 export function CoursePlanResult() {
   const router = useRouter();
-  const [stored, setStored] = useState<StoredCourseGeneration | null>(null);
+  const [project, setProject] = useState<CourseProject | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<CourseGenerationApiError | null>(null);
+  const [storageWarning, setStorageWarning] = useState(false);
 
   useEffect(() => {
     let active = true;
     window.queueMicrotask(() => {
       if (!active) return;
-      const generation = loadCourseGeneration(window.sessionStorage);
-      if (!generation) {
+      const projectId = new URLSearchParams(window.location.search).get("projectId");
+      const migrated = migrateLegacyCourseProject(window.localStorage, window.sessionStorage);
+      let storedProject = projectId
+        ? getCourseProject(window.localStorage, projectId)
+        : migrated;
+      if (storedProject && (!storedProject.coursePlan || !storedProject.generation)) {
+        const fallback = loadCourseGeneration(window.sessionStorage);
+        if (fallback?.brief.courseTitle === storedProject.title) {
+          storedProject = mergeGenerationIntoProject(storedProject, fallback);
+          setStorageWarning(true);
+        }
+      }
+      if (!storedProject?.coursePlan || !storedProject.generation) {
         router.replace("/courses/new?result=missing");
         return;
       }
-      setStored(generation);
+      if (!projectId) {
+        window.history.replaceState(null, "", `/courses/result?projectId=${storedProject.id}`);
+      }
+      setProject(storedProject);
       setHydrated(true);
     });
     return () => {
@@ -111,15 +126,35 @@ export function CoursePlanResult() {
   }, [router]);
 
   const handleRegenerate = async () => {
-    if (!stored || regenerating) return;
+    if (!project || regenerating || project.status !== "draft") return;
+    const brief = courseBriefSchema.safeParse(project.courseBrief);
+    if (!brief.success) return;
     const confirmed = window.confirm("重新生成会发起一次新的 AI 调用，并替换当前标签页中的课程蓝图。确定继续吗？");
     if (!confirmed) return;
     setRegenerating(true);
     setError(null);
     try {
-      const response = await generateCoursePlan(stored.brief);
-      saveCourseGeneration(window.sessionStorage, stored.brief, response);
-      setStored(loadCourseGeneration(window.sessionStorage));
+      const response = await generateCoursePlan(brief.data);
+      try {
+        const updated = attachGenerationToProject(
+          window.localStorage,
+          project.id,
+          brief.data,
+          response,
+        );
+        clearCourseGeneration(window.sessionStorage);
+        setProject(updated);
+        setStorageWarning(false);
+      } catch {
+        saveCourseGeneration(window.sessionStorage, brief.data, response);
+        setProject(mergeGenerationIntoProject(project, {
+          version: 1,
+          brief: brief.data,
+          response,
+          savedAt: new Date().toISOString(),
+        }));
+        setStorageWarning(true);
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {
       setError(
@@ -132,7 +167,31 @@ export function CoursePlanResult() {
     }
   };
 
-  if (!hydrated || !stored) {
+  const handleSaveProject = () => {
+    if (!project) return;
+    if (project.status !== "draft") {
+      router.push(`/courses/${project.id}`);
+      return;
+    }
+    try {
+      const stored = getCourseProject(window.localStorage, project.id);
+      if (!stored?.coursePlan || !stored.generation) {
+        const brief = courseBriefSchema.parse(project.courseBrief);
+        const response = responseFromProject(project);
+        if (!response) throw new Error("课程蓝图尚未完整生成");
+        attachGenerationToProject(window.localStorage, project.id, brief, response);
+      }
+      const saved = finalizeCourseProject(window.localStorage, project.id);
+      clearCourseGeneration(window.sessionStorage);
+      setProject(saved);
+      setStorageWarning(false);
+      router.push(`/courses/${saved.id}`);
+    } catch {
+      setError(new CourseGenerationApiError("课程项目保存失败，请检查浏览器存储空间后重试。"));
+    }
+  };
+
+  if (!hydrated || !project || !project.coursePlan || !project.generation) {
     return (
       <Card>
         <CardContent className="flex min-h-72 items-center justify-center text-sm text-muted-foreground">
@@ -142,9 +201,15 @@ export function CoursePlanResult() {
     );
   }
 
-  if (regenerating) return <CourseGenerationLoading lessonCount={stored.brief.lessonCount} />;
+  const brief = courseBriefSchema.safeParse(project.courseBrief);
+  if (!brief.success) {
+    router.replace(`/courses/new?projectId=${project.id}`);
+    return null;
+  }
+  if (regenerating) return <CourseGenerationLoading lessonCount={brief.data.lessonCount} />;
 
-  const { coursePlan: plan, generation } = stored.response;
+  const plan = project.coursePlan;
+  const generation = project.generation;
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl border border-[#dce4fb] bg-[#eef3ff] p-6 sm:p-8">
@@ -162,23 +227,37 @@ export function CoursePlanResult() {
             <p className="mt-3 text-base font-medium leading-7 text-[#35415b]">{plan.positioning}</p>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5a6680]">{plan.overview}</p>
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#59657e]">
-              <span className="flex items-center gap-1.5"><BookOpen className="size-3.5" />{stored.brief.lessonCount} 课时</span>
-              <span className="flex items-center gap-1.5"><Clock3 className="size-3.5" />每课 {stored.brief.lessonDurationMinutes} 分钟</span>
+              <span className="flex items-center gap-1.5"><BookOpen className="size-3.5" />{brief.data.lessonCount} 课时</span>
+              <span className="flex items-center gap-1.5"><Clock3 className="size-3.5" />每课 {brief.data.lessonDurationMinutes} 分钟</span>
               <span className="flex items-center gap-1.5"><Sparkles className="size-3.5" />{generation.provider} · {generation.model}</span>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button variant="outline" onClick={() => router.push("/courses/new")}>
+            <Button variant="outline" onClick={() => router.push(`/courses/new?projectId=${project.id}`)}>
               <ArrowLeft className="size-4" />修改需求
             </Button>
-            <Button onClick={handleRegenerate}>
-              <RefreshCw className="size-4" />重新生成
+            {project.status === "draft" && (
+              <Button variant="outline" onClick={handleRegenerate}>
+                <RefreshCw className="size-4" />重新生成
+              </Button>
+            )}
+            <Button onClick={handleSaveProject}>
+              {project.status === "draft" ? "保存为课程项目" : "进入课程工作台"}
             </Button>
           </div>
         </div>
       </section>
 
       {error && <CourseGenerationError error={error} onRetry={handleRegenerate} />}
+
+      {storageWarning && (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+          <AlertTitle>课程蓝图暂未保存到长期存储</AlertTitle>
+          <AlertDescription>
+            当前结果已在本标签页临时保留。请释放浏览器存储空间后点击“保存为课程项目”，保存成功前不要关闭页面。
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -244,37 +323,7 @@ export function CoursePlanResult() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle><SectionTitle icon={CheckCircle2}>后续课程资源规划</SectionTitle></CardTitle>
-          <p className="text-sm leading-6 text-muted-foreground">
-            以下内容仅为资源用途与适用范围规划，具体资源将在后续资源中心单独生成。
-          </p>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          {plan.resourcePlan.map((resource) => {
-            const scope = getResourceScope(plan, resource);
-            return (
-              <div key={resource.resourceType} className="rounded-xl border p-4">
-                <h3 className="text-sm font-semibold text-[#273149]">
-                  {resourceLabels[resource.resourceType] ?? resource.resourceType}
-                </h3>
-                <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                  <p><span className="font-semibold text-[#44506a]">用途：</span>{resource.purpose}</p>
-                  {scope.phases.length > 0 && (
-                    <p><span className="font-semibold text-[#44506a]">关联课程阶段：</span>{scope.phases.join("、")}</p>
-                  )}
-                  <p>
-                    <span className="font-semibold text-[#44506a]">关联模块：</span>
-                    {scope.modules.length > 0 ? scope.modules.join("、") : "课程整体"}
-                  </p>
-                  <p><span className="font-semibold text-[#44506a]">适用课时：</span>{formatLessonScope(scope.lessonIds)}</p>
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+      <ResourcePlanPanel plan={plan} requestedResources={brief.data.requestedResources} />
 
       {(plan.assumptions.length > 0 || plan.qualityChecklist.length > 0) && (
         <Alert>

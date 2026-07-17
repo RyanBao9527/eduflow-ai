@@ -39,7 +39,7 @@ describe("getLocalCourseSummary", () => {
     });
   });
 
-  it("marks a submitted course separately from a draft", () => {
+  it("maps a submitted legacy course to a draft project status", () => {
     saveCourseWizardDraft(window.localStorage, {
       currentStep: 5,
       values: { courseTitle: "分数的初步认识" },
@@ -47,13 +47,13 @@ describe("getLocalCourseSummary", () => {
     });
 
     expect(getLocalCourseSummary(window.localStorage)).toMatchObject({
-      status: "submitted",
+      status: "draft",
       subject: "尚未设置学科",
       audience: "尚未设置目标学员",
     });
   });
 
-  it("marks a matching generated blueprint as ready", () => {
+  it("maps a matching generated blueprint to generated", () => {
     saveCourseWizardDraft(window.localStorage, {
       currentStep: 5,
       values: validCourseBrief,
@@ -62,7 +62,7 @@ describe("getLocalCourseSummary", () => {
     saveCourseGeneration(window.sessionStorage, validCourseBrief, makeCourseResponse());
 
     expect(getLocalCourseSummary(window.localStorage, window.sessionStorage)).toMatchObject({
-      status: "ready",
+      status: "generated",
       title: "Python 编程启蒙",
     });
   });
