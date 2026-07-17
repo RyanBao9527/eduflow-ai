@@ -3,14 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { LessonResourceSection } from "@/features/course-resources/lesson-resource-section";
 import type { CoursePlan } from "@/features/course-generation/course-plan-schema";
+import type { CourseBrief } from "@/features/course-wizard/course-brief-schema";
 
 export function LessonList({
   plan,
+  projectId,
+  courseBrief,
+  projectUpdatedAt,
   isEditing,
   onLessonChange,
 }: {
   plan: CoursePlan;
+  projectId: string;
+  courseBrief: CourseBrief;
+  projectUpdatedAt: string;
   isEditing: boolean;
   onLessonChange: (lessonId: string, field: "title" | "objective", value: string) => void;
 }) {
@@ -55,10 +63,18 @@ export function LessonList({
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{lesson.objective}</p>
               </div>
             )}
+            <LessonResourceSection
+              projectId={projectId}
+              courseBrief={courseBrief}
+              coursePlan={plan}
+              projectUpdatedAt={projectUpdatedAt}
+              moduleId={lesson.moduleId}
+              lessonId={lesson.lessonId}
+              isEditing={isEditing}
+            />
           </section>
         ))}
       </CardContent>
     </Card>
   );
 }
-

@@ -58,6 +58,7 @@ export function CourseWorkspace({ projectId }: { projectId: string }) {
   }, [dirty]);
 
   const active = draft ?? project;
+  const savedBrief = project ? courseBriefSchema.safeParse(project.courseBrief) : null;
 
   const navigateBack = () => {
     if (dirty && !window.confirm("当前修改尚未保存，确定返回 Dashboard 吗？")) return;
@@ -136,7 +137,12 @@ export function CourseWorkspace({ projectId }: { projectId: string }) {
     return <Card><CardContent className="flex min-h-72 items-center justify-center text-sm text-muted-foreground">正在加载课程项目…</CardContent></Card>;
   }
 
-  if (!active?.coursePlan || !active.generation || active.status === "draft") {
+  if (
+    !active?.coursePlan ||
+    !active.generation ||
+    active.status === "draft" ||
+    !savedBrief?.success
+  ) {
     return (
       <Card>
         <CardContent className="flex min-h-[420px] flex-col items-center justify-center text-center">
@@ -182,6 +188,9 @@ export function CourseWorkspace({ projectId }: { projectId: string }) {
         />
         <LessonList
           plan={active.coursePlan}
+          projectId={active.id}
+          courseBrief={savedBrief.data}
+          projectUpdatedAt={active.updatedAt}
           isEditing={isEditing}
           onLessonChange={(lessonId, field, fieldValue) => updateDraft((value) => ({
             ...value,
