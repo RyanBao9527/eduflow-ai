@@ -189,8 +189,6 @@ export function CourseWorkspace({ projectId }: { projectId: string }) {
         <LessonList
           plan={active.coursePlan}
           projectId={active.id}
-          courseBrief={savedBrief.data}
-          projectUpdatedAt={active.updatedAt}
           isEditing={isEditing}
           onLessonChange={(lessonId, field, fieldValue) => updateDraft((value) => ({
             ...value,

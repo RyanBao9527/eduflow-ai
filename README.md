@@ -4,9 +4,9 @@
 
 ### AI-powered course development platform
 
-将课程想法转化为结构化 AI Course Blueprint，并在可编辑的 Course Workspace 中持续管理和完善。
+将课程想法转化为结构化 AI Course Blueprint，并通过 Course Workspace 与 Lesson Workspace 持续完成课程设计和单课备课。
 
-[![Version](https://img.shields.io/badge/version-v0.5.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.5.0)
+[![Version](https://img.shields.io/badge/version-v0.6.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.6.0)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> **Current Version: v0.5.0 — AI Course Wizard UX Upgrade.** 通过本地课程推荐、卡片式学员画像和智能默认值，帮助用户更快完成结构化课程创建。
+> **Current Version: v0.6.0 — Lesson Workspace.** 课程项目现已支持按课时进入独立备课工作台，生成、查看并管理教师教案和 PPT 课件结构版本。
 
 ## Product Positioning
 
@@ -34,8 +34,9 @@ AI-assisted Course Wizard
 → AI Course Blueprint
 → Save as CourseProject
 → Course Workspace
-→ Generate lesson resources
-→ Preview current and historical ResourceArtifacts
+→ Select a Lesson
+→ Lesson Workspace
+→ Generate and review ResourceArtifact versions
 ```
 
 ## Features
@@ -48,10 +49,11 @@ AI-assisted Course Wizard
 | Model-agnostic LLM Layer | 统一 LLM Provider 接口，当前接入 DeepSeek，模型信息由环境变量配置 |
 | CourseProject | 使用稳定 UUID、`schemaVersion`、状态和生成元数据封装课程资产 |
 | Local Persistence | 多个课程项目保存到 localStorage，并兼容迁移旧草稿与 session 蓝图 |
-| Course Workspace | 编辑课程标题、总体目标、模块名称、课时标题和课时描述 |
+| Course Workspace | 管理课程信息与结构、查看课时资源进度并进入单课备课 |
+| Lesson Workspace | 围绕指定课时查看教学目标和模块信息，生成并管理单课教学资源 |
 | Lesson-level Resource Generation | 为指定课时生成教师教案或 PPT 课件内容结构 |
 | ResourceArtifact | 独立保存资源内容、生成元数据、稳定 UUID 和最近三个版本 |
-| Workspace Resource Preview | 只读查看最新资源、生成模型、Token 使用和历史版本 |
+| Lesson Resource Preview | 在 Lesson Workspace 只读查看最新资源、生成模型、Token 使用和历史版本 |
 | Dashboard Management | 展示本地课程项目、状态、更新时间和对应的继续操作入口 |
 | Data-loss Protection | 自动保存、显式 Workspace 保存、未保存离开提醒和存储异常回退 |
 | Engineering Quality | Vitest、Testing Library、Pytest、ESLint 和 Next.js production build |
@@ -77,12 +79,13 @@ flowchart LR
     W --> C["Course Creation Wizard"]
     W --> R["Blueprint Result"]
     W --> CW["Course Workspace"]
+    CW --> LW["Lesson Workspace"]
     C --> V["React Hook Form + Zod"]
     D --> P["Versioned CourseProject Store"]
     C --> P
     R --> P
     CW --> P
-    CW --> RA["Versioned ResourceArtifact Store"]
+    LW --> RA["Versioned ResourceArtifact Store"]
     W --> A["FastAPI Backend"]
     A --> S["Course Generation Service"]
     A --> RS["Resource Generation Service"]
@@ -109,6 +112,21 @@ MVP 不使用数据库。CourseProject repository 隔离了存储细节，后续
 
 ResourceArtifact 使用独立的版本化 localStorage repository，通过 `courseProjectId`、`lessonId` 和 `resourceType` 关联课程项目。资源不会嵌入或改写 CourseProject。
 
+### 课程与单课工作台职责
+
+```text
+CourseProject
+↓
+CoursePlan
+↓
+Lesson
+↓
+ResourceArtifact
+```
+
+- **Course Workspace**：负责课程信息、模块和课时结构管理，以及课时资源进度导航。
+- **Lesson Workspace**：负责单课教学准备、按需资源生成、最新结果查看和历史版本切换。
+
 ## Tech Stack
 
 | Layer | Technologies |
@@ -124,24 +142,27 @@ ResourceArtifact 使用独立的版本化 localStorage repository，通过 `cour
 
 ## Current Version
 
-### v0.5.0 — AI Course Wizard UX Upgrade
+### v0.6.0 — Lesson Workspace
 
-v0.5.0 将原有课程需求表升级为更易上手的 AI 课程创建助手，在不改变 CourseBrief、CourseProject 或后端 API 的前提下降低首次创建成本。
+v0.6.0 将单课资源生成升级为独立的 Lesson Workspace，让教师围绕具体课时完成教学准备，同时保持 CourseProject、CoursePlan、ResourceArtifact 和后端生成 API 兼容。
 
 Highlights:
 
-- Local rule-based course recommendations without an additional AI request.
-- Card-based learner profile selection with legacy draft compatibility.
-- Smart local defaults for lesson planning, teaching mode and course goals.
-- Productized resource selection and course creation confirmation flow.
+- Lesson-level preparation workflow and dedicated Lesson Workspace.
+- Teacher lesson plan and slide outline generation for a selected lesson.
+- Read-only resource result preview with generation metadata.
+- ResourceArtifact latest-ready lookup and immutable version history.
+- Lightweight Course Workspace lesson navigation and resource status summaries.
 
 Not included:
 
-- New AI API or additional model calls.
 - Database.
 - Authentication.
-- Agent capabilities.
-- RAG capabilities.
+- Multi-user collaboration.
+- PPT file generation.
+- Word or Excel export.
+- Download and batch generation.
+- RAG or Agent capabilities.
 
 ## Roadmap
 
@@ -185,6 +206,14 @@ Not included:
 - Productized resource plan and final confirmation flow.
 - Existing CourseBrief, CourseProject and generation API compatibility.
 
+### v0.6.0 — Lesson Workspace
+
+- Single-lesson preparation workflow.
+- Dedicated Lesson Workspace route and lesson overview.
+- Teacher lesson plan and slide outline generation.
+- Read-only current and historical ResourceArtifact viewing.
+- Course Workspace lesson navigation and resource status summaries.
+
 ### Next
 
 - **Export Center:** 集中管理和导出课程资源。
@@ -220,6 +249,7 @@ pnpm dev
 - 新建课程：`/courses/new`
 - 课程蓝图：`/courses/result?projectId={id}`
 - Course Workspace：`/courses/{id}`
+- Lesson Workspace：`/courses/{id}/lessons/{lessonId}`
 
 ### Backend
 
@@ -287,6 +317,7 @@ EduFlow AI/
 │   │   ├── course-generation/     # AI API, schemas and blueprint result
 │   │   ├── course-resources/      # Resource generation, artifacts and read-only results
 │   │   ├── course-workspace/      # CourseProject storage, migration and editor
+│   │   ├── lesson-workspace/      # Single-lesson preparation and resource workflow
 │   │   └── dashboard/             # Local project management
 │   ├── tests/                     # Frontend unit and interaction tests
 │   └── types/                     # Shared TypeScript types
