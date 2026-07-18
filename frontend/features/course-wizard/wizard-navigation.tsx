@@ -35,7 +35,7 @@ export function WizardNavigation({
       ) : (
         <Button type="submit" disabled={isSubmitting}>
           <Sparkles className="size-4" />
-          {isSubmitting ? "正在生成…" : "AI 生成课程蓝图"}
+          {isSubmitting ? "正在创建…" : "创建 AI 课程"}
         </Button>
       )}
     </div>
