@@ -1,24 +1,15 @@
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { LessonResourceSection } from "@/features/course-resources/lesson-resource-section";
 import type { CoursePlan } from "@/features/course-generation/course-plan-schema";
-import type { CourseBrief } from "@/features/course-wizard/course-brief-schema";
+import { LessonSummaryCard } from "@/features/course-workspace/lesson-summary-card";
 
 export function LessonList({
   plan,
   projectId,
-  courseBrief,
-  projectUpdatedAt,
   isEditing,
   onLessonChange,
 }: {
   plan: CoursePlan;
   projectId: string;
-  courseBrief: CourseBrief;
-  projectUpdatedAt: string;
   isEditing: boolean;
   onLessonChange: (lessonId: string, field: "title" | "objective", value: string) => void;
 }) {
@@ -26,54 +17,29 @@ export function LessonList({
     <Card>
       <CardHeader>
         <CardTitle>课时列表</CardTitle>
-        <p className="text-sm text-muted-foreground">结构 ID、顺序和模块归属保持只读。</p>
+        <p className="text-sm text-muted-foreground">
+          查看课程结构与资源进度，进入单课工作台完成备课。
+        </p>
+        {isEditing && (
+          <p role="status" className="text-sm font-medium text-amber-700">
+            请先保存课程修改，再进入课时备课。
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {plan.lessonIndex.map((lesson) => (
-          <section key={lesson.lessonId} className="rounded-xl border p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{lesson.lessonId}</Badge>
-              <Badge variant="secondary">{lesson.moduleId}</Badge>
-              <span className="text-xs text-muted-foreground">第 {lesson.lessonNumber} 课 · {lesson.durationMinutes} 分钟</span>
-            </div>
-            {isEditing ? (
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <div>
-                  <Label htmlFor={`lesson-title-${lesson.lessonId}`}>课时标题</Label>
-                  <Input
-                    id={`lesson-title-${lesson.lessonId}`}
-                    className="mt-2"
-                    value={lesson.title}
-                    onChange={(event) => onLessonChange(lesson.lessonId, "title", event.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`lesson-description-${lesson.lessonId}`}>课时描述</Label>
-                  <Textarea
-                    id={`lesson-description-${lesson.lessonId}`}
-                    className="mt-2 min-h-20"
-                    value={lesson.objective}
-                    onChange={(event) => onLessonChange(lesson.lessonId, "objective", event.target.value)}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <h3 className="font-semibold text-[#273149]">{lesson.title}</h3>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">{lesson.objective}</p>
-              </div>
-            )}
-            <LessonResourceSection
+        {plan.lessonIndex.map((lesson) => {
+          const courseModule = plan.modules.find((module) => module.moduleId === lesson.moduleId);
+          return (
+            <LessonSummaryCard
+              key={lesson.lessonId}
+              lesson={lesson}
+              moduleTitle={courseModule?.title ?? lesson.moduleId}
               projectId={projectId}
-              courseBrief={courseBrief}
-              coursePlan={plan}
-              projectUpdatedAt={projectUpdatedAt}
-              moduleId={lesson.moduleId}
-              lessonId={lesson.lessonId}
               isEditing={isEditing}
+              onLessonChange={onLessonChange}
             />
-          </section>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
