@@ -6,7 +6,7 @@ import {
   createResourceArtifactVersion,
   RESOURCE_ARTIFACT_STORAGE_KEY,
 } from "@/features/course-resources/resource-artifact-storage";
-import { CourseWorkspace } from "@/features/course-workspace/course-workspace";
+import { LessonWorkspace } from "@/features/lesson-workspace/lesson-workspace";
 import {
   attachGenerationToProject,
   createDraftCourseProject,
@@ -94,10 +94,12 @@ function createSlideOutline(projectId: string, lessonId = "L001", overview?: str
 
 describe("Resource Result UI", () => {
   it("shows a read-only generated lesson plan with metadata and token usage", async () => {
+    const user = userEvent.setup();
     const project = createGeneratedProject();
     createLessonPlan(project.id);
-    render(<CourseWorkspace projectId={project.id} />);
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
 
+    await user.click(await screen.findByRole("button", { name: "查看教案" }));
     const result = await screen.findByRole("region", { name: "教师教案结果" });
     expect(within(result).getByText("L001 教师教案")).toBeInTheDocument();
     expect(within(result).getByText("通过生活案例认识循环结构。")).toBeInTheDocument();
@@ -110,41 +112,50 @@ describe("Resource Result UI", () => {
 
   it("shows safe empty states without rendering a result panel", async () => {
     const project = createGeneratedProject();
-    render(<CourseWorkspace projectId={project.id} />);
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
 
-    const resources = await screen.findByRole("region", { name: "L001 资源" });
-    expect(within(resources).getByText("教师教案 · 未生成")).toBeInTheDocument();
-    expect(within(resources).getByText("PPT结构 · 未生成")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "生成教案" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生成PPT结构" })).toBeInTheDocument();
+    expect(screen.getAllByText("未生成")).toHaveLength(2);
     expect(screen.queryByRole("region", { name: "教师教案结果" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "PPT课件结构结果" })).not.toBeInTheDocument();
   });
 
   it("keeps lesson plan and slide outline result content isolated", async () => {
+    const user = userEvent.setup();
     const project = createGeneratedProject();
     createLessonPlan(project.id, "L001", "教案专属内容");
     createSlideOutline(project.id, "L001", "PPT专属内容");
-    render(<CourseWorkspace projectId={project.id} />);
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
 
+    await user.click(await screen.findByRole("button", { name: "查看教案" }));
     const lessonPlan = await screen.findByRole("region", { name: "教师教案结果" });
-    const slides = await screen.findByRole("region", { name: "PPT课件结构结果" });
     expect(within(lessonPlan).getByText("教案专属内容")).toBeInTheDocument();
     expect(within(lessonPlan).queryByText("PPT专属内容")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "查看PPT结构" }));
+    const slides = await screen.findByRole("region", { name: "PPT课件结构结果" });
     expect(within(slides).getByText("PPT专属内容")).toBeInTheDocument();
     expect(within(slides).queryByText("教案专属内容")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "教师教案结果" })).not.toBeInTheDocument();
   });
 
   it("keeps resource results isolated between lessons", async () => {
+    const user = userEvent.setup();
     const project = createTwoLessonProject();
     createLessonPlan(project.id, "L001", "第一课教案内容");
     createLessonPlan(project.id, "L002", "第二课教案内容");
-    render(<CourseWorkspace projectId={project.id} />);
+    const firstWorkspace = render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
 
-    const firstLesson = await screen.findByRole("region", { name: "L001 资源" });
-    const secondLesson = await screen.findByRole("region", { name: "L002 资源" });
-    expect(within(firstLesson).getByText("第一课教案内容")).toBeInTheDocument();
-    expect(within(firstLesson).queryByText("第二课教案内容")).not.toBeInTheDocument();
-    expect(within(secondLesson).getByText("第二课教案内容")).toBeInTheDocument();
-    expect(within(secondLesson).queryByText("第一课教案内容")).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "查看教案" }));
+    expect(screen.getByText("第一课教案内容")).toBeInTheDocument();
+    expect(screen.queryByText("第二课教案内容")).not.toBeInTheDocument();
+
+    firstWorkspace.unmount();
+    render(<LessonWorkspace projectId={project.id} lessonId="L002" />);
+    await user.click(await screen.findByRole("button", { name: "查看教案" }));
+    expect(screen.getByText("第二课教案内容")).toBeInTheDocument();
+    expect(screen.queryByText("第一课教案内容")).not.toBeInTheDocument();
   });
 
   it("defaults to the ready version and allows read-only historical version viewing", async () => {
@@ -152,8 +163,9 @@ describe("Resource Result UI", () => {
     const project = createGeneratedProject();
     createLessonPlan(project.id, "L001", "第一版教案内容");
     createLessonPlan(project.id, "L001", "第二版教案内容");
-    render(<CourseWorkspace projectId={project.id} />);
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
 
+    await user.click(await screen.findByRole("button", { name: "查看教案" }));
     const result = await screen.findByRole("region", { name: "教师教案结果" });
     expect(within(result).getByText("最新版本 · v2")).toBeInTheDocument();
     expect(within(result).getByText("第二版教案内容")).toBeInTheDocument();
@@ -165,6 +177,7 @@ describe("Resource Result UI", () => {
   });
 
   it("filters a corrupted Artifact without hiding valid resource results", async () => {
+    const user = userEvent.setup();
     const project = createGeneratedProject();
     createSlideOutline(project.id, "L001", "有效PPT结构");
     const envelope = JSON.parse(window.localStorage.getItem(RESOURCE_ARTIFACT_STORAGE_KEY)!);
@@ -177,8 +190,9 @@ describe("Resource Result UI", () => {
       content: { overview: "损坏内容" },
     });
     window.localStorage.setItem(RESOURCE_ARTIFACT_STORAGE_KEY, JSON.stringify(envelope));
-    render(<CourseWorkspace projectId={project.id} />);
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
 
+    await user.click(await screen.findByRole("button", { name: "查看PPT结构" }));
     const result = await screen.findByRole("region", { name: "PPT课件结构结果" });
     expect(within(result).getByText("有效PPT结构")).toBeInTheDocument();
     expect(screen.queryByText("损坏内容")).not.toBeInTheDocument();
