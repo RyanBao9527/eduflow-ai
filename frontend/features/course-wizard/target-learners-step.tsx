@@ -1,37 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 
 import {
-  FormControl,
-  FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import type { CourseBriefFormValues } from "@/features/course-wizard/course-brief-schema";
+import {
+  EDUCATION_STAGE_OPTIONS,
+  LEARNER_LEVEL_OPTIONS,
+  LEARNER_TYPE_OPTIONS,
+} from "@/features/course-wizard/constants";
+import { WizardOptionCardGroup } from "@/features/course-wizard/wizard-option-card-group";
 
 export function TargetLearnersStep() {
   const form = useFormContext<CourseBriefFormValues>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const hasSettingsError = Boolean(form.formState.errors.classSize);
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="space-y-7">
       <FormField
         control={form.control}
         name="targetLearners"
         render={({ field }) => (
-          <FormItem className="sm:col-span-2">
-            <FormLabel>学员类型</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="例如：小学生 / 大学生 / 教师 / 企业员工 / 职场人士"
-                {...field}
-              />
-            </FormControl>
-            <FormDescription>描述课程面向的人群。</FormDescription>
+          <FormItem>
+            <WizardOptionCardGroup
+              label="学员类型"
+              description="选择最符合课程主要学员的人群。"
+              options={LEARNER_TYPE_OPTIONS}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              customPlaceholder="例如：新任管理者、家长、技术团队"
+            />
             <FormMessage />
           </FormItem>
         )}
@@ -42,15 +47,14 @@ export function TargetLearnersStep() {
         name="ageOrGrade"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>年龄/教育阶段</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="例如：8-10岁 / 小学高年级 / 初中阶段 / 成人"
-                autoComplete="off"
-                {...field}
-              />
-            </FormControl>
-            <FormDescription>填写适用的年龄范围、年级或教育阶段。</FormDescription>
+            <WizardOptionCardGroup
+              label="年龄/教育阶段"
+              description="选择课程主要适用的教育阶段。"
+              options={EDUCATION_STAGE_OPTIONS}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              customPlaceholder="例如：8-10岁、小学高年级、大学阶段"
+            />
             <FormMessage />
           </FormItem>
         )}
@@ -61,47 +65,58 @@ export function TargetLearnersStep() {
         name="learnerLevel"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>学员基础</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="例如：零基础 / 有相关学习经验 / 已掌握基础知识 / 有项目实践经验"
-                autoComplete="off"
-                {...field}
-              />
-            </FormControl>
-            <FormDescription>说明学员已有的相关知识或实践经验。</FormDescription>
+            <WizardOptionCardGroup
+              label="学员基础"
+              description="选择大多数学员开始课程时的基础水平。"
+              options={LEARNER_LEVEL_OPTIONS}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              customPlaceholder="例如：已掌握基础知识、有项目实践经验"
+            />
             <FormMessage />
           </FormItem>
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="classSize"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>班级人数（可选）</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={1000}
-                placeholder="例如：30"
-                name={field.name}
-                ref={field.ref}
-                onBlur={field.onBlur}
-                value={field.value ?? ""}
-                onChange={(event) =>
-                  field.onChange(event.target.value === "" ? undefined : Number(event.target.value))
-                }
-              />
-            </FormControl>
-            <FormDescription>用于后续设计课堂活动规模。</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <details
+        className="rounded-xl border bg-muted/25"
+        open={settingsOpen || hasSettingsError}
+        onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#273149] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
+          更多设置
+          <span className="ml-2 text-xs font-normal text-muted-foreground">班级人数</span>
+        </summary>
+        <div className="border-t p-4">
+          <FormField
+            control={form.control}
+            name="classSize"
+            render={({ field }) => (
+              <FormItem className="max-w-sm">
+                <label htmlFor="class-size" className="text-sm font-medium">班级人数（可选）</label>
+                <Input
+                  id="class-size"
+                  className="mt-2"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={1000}
+                  placeholder="例如：30"
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={field.value ?? ""}
+                  onChange={(event) =>
+                    field.onChange(event.target.value === "" ? undefined : Number(event.target.value))
+                  }
+                />
+                <p className="text-sm text-muted-foreground">用于后续设计课堂活动规模。</p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </details>
     </div>
   );
 }
