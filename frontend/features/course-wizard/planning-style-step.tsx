@@ -1,11 +1,8 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
-import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   FormControl,
   FormDescription,
@@ -25,16 +22,75 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   DIFFICULTY_OPTIONS,
-  TEACHING_STYLE_OPTIONS,
+  TEACHING_MODE_OPTIONS,
 } from "@/features/course-wizard/constants";
 import type { CourseBriefFormValues } from "@/features/course-wizard/course-brief-schema";
+import { WizardOptionCardGroup } from "@/features/course-wizard/wizard-option-card-group";
 
 export function PlanningStyleStep() {
   const form = useFormContext<CourseBriefFormValues>();
-  const [customStyle, setCustomStyle] = useState("");
 
   return (
     <div className="grid gap-6 sm:grid-cols-2">
+      <FormField
+        control={form.control}
+        name="teachingStyles"
+        render={({ field }) => {
+          const selectedStyles = field.value ?? [];
+          const selectedMode = selectedStyles.length === 1
+            && TEACHING_MODE_OPTIONS.some((option) => option.value === selectedStyles[0])
+            ? selectedStyles[0]
+            : "";
+          const hasLegacyStyles = selectedStyles.length > 0 && !selectedMode;
+
+          return (
+            <FormItem className="sm:col-span-2">
+              <WizardOptionCardGroup
+                label="教学方式"
+                description="选择一种主要教学方式；AI 智能规划会结合课程主题和学员画像组织课程。"
+                options={TEACHING_MODE_OPTIONS}
+                value={selectedMode}
+                onChange={(value) => field.onChange([value])}
+                allowCustom={false}
+              />
+              {hasLegacyStyles && (
+                <div className="rounded-lg bg-muted/70 p-3" aria-label="已保存的教学风格">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    已保留旧草稿中的教学风格。选择上方任一教学方式后将替换这些设置。
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedStyles.map((style) => (
+                      <Badge key={style} variant="secondary">{style}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <FormMessage />
+            </FormItem>
+          );
+        }}
+      />
+
+      <FormField
+        control={form.control}
+        name="overallGoal"
+        render={({ field }) => (
+          <FormItem className="sm:col-span-2">
+            <FormLabel>希望学生学会什么？</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="例如：掌握 Python 基础语法，并能独立完成一个简单项目。"
+                {...field}
+              />
+            </FormControl>
+            <FormDescription>
+              已根据课程主题提供可编辑的默认目标，课程结构、活动和评价将围绕它组织。
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       <FormField
         control={form.control}
         name="lessonDurationMinutes"
@@ -95,7 +151,12 @@ export function PlanningStyleStep() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>课程难度</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value ?? ""}>
+            <Select
+              onValueChange={(value) => {
+                if (value) field.onChange(value);
+              }}
+              value={field.value ?? ""}
+            >
               <FormControl>
                 <SelectTrigger aria-label="课程难度">
                   <SelectValue placeholder="请选择课程难度" />
@@ -114,120 +175,6 @@ export function PlanningStyleStep() {
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="overallGoal"
-        render={({ field }) => (
-          <FormItem className="sm:col-span-2">
-            <FormLabel>课程总体目标</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="描述课程结束后，学员应该理解什么、掌握什么或能够完成什么。"
-                {...field}
-              />
-            </FormControl>
-            <FormDescription>后续课程结构、活动和评价都将围绕该目标组织。</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="teachingStyles"
-        render={({ field }) => {
-          const selectedStyles = field.value ?? [];
-          const customStyles = selectedStyles.filter(
-            (style) => !TEACHING_STYLE_OPTIONS.includes(style as (typeof TEACHING_STYLE_OPTIONS)[number]),
-          );
-
-          const toggleStyle = (style: string, checked: boolean) => {
-            field.onChange(
-              checked
-                ? [...selectedStyles, style]
-                : selectedStyles.filter((value) => value !== style),
-            );
-          };
-
-          const addCustomStyle = () => {
-            const value = customStyle.trim();
-            if (!value || selectedStyles.includes(value) || selectedStyles.length >= 5) return;
-            field.onChange([...selectedStyles, value]);
-            setCustomStyle("");
-          };
-
-          return (
-            <FormItem className="sm:col-span-2">
-              <FormLabel>教学风格</FormLabel>
-              <FormDescription>至少选择一种，最多五种。</FormDescription>
-              <div className="grid gap-3 pt-1 sm:grid-cols-2 lg:grid-cols-3">
-                {TEACHING_STYLE_OPTIONS.map((style) => {
-                  const checked = selectedStyles.includes(style);
-                  return (
-                    <label
-                      key={style}
-                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted has-[[data-state=checked]]:border-primary/35 has-[[data-state=checked]]:bg-[#f2f5ff]"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(value) => toggleStyle(style, value === true)}
-                        aria-label={style}
-                      />
-                      {style}
-                    </label>
-                  );
-                })}
-              </div>
-
-              {customStyles.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2" aria-label="自定义教学风格">
-                  {customStyles.map((style) => (
-                    <span
-                      key={style}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground"
-                    >
-                      {style}
-                      <button
-                        type="button"
-                        onClick={() => toggleStyle(style, false)}
-                        aria-label={`移除教学风格：${style}`}
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-                <Input
-                  value={customStyle}
-                  onChange={(event) => setCustomStyle(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addCustomStyle();
-                    }
-                  }}
-                  maxLength={40}
-                  placeholder="添加自定义教学风格"
-                  aria-label="自定义教学风格"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addCustomStyle}
-                  disabled={!customStyle.trim() || selectedStyles.length >= 5}
-                >
-                  <Plus className="size-4" />
-                  添加
-                </Button>
-              </div>
-              <FormMessage />
-            </FormItem>
-          );
-        }}
-      />
     </div>
   );
 }

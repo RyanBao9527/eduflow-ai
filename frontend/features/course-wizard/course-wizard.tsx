@@ -30,6 +30,7 @@ import {
   type CourseBrief,
   type CourseBriefFormValues,
 } from "@/features/course-wizard/course-brief-schema";
+import { getPlanningDefaultPatch } from "@/features/course-wizard/course-planning-defaults";
 import {
   STEP_FIELDS,
   WIZARD_STEPS,
@@ -85,6 +86,7 @@ export function CourseWizard() {
   const [resultNotice, setResultNotice] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
+  const resourceDefaultsAppliedRef = useRef(false);
 
   const form = useForm<CourseBriefFormValues, unknown, CourseBrief>({
     resolver: zodResolver(courseBriefSchema),
@@ -214,6 +216,48 @@ export function CourseWizard() {
     [currentStep, form.formState.errors],
   );
 
+  const applyPlanningDefaults = useCallback(() => {
+    const patch = getPlanningDefaultPatch(form.getValues());
+    const options = { shouldDirty: true, shouldTouch: false, shouldValidate: false };
+    if (patch.lessonCount !== undefined) {
+      form.setValue("lessonCount", patch.lessonCount, options);
+    }
+    if (patch.lessonDurationMinutes !== undefined) {
+      form.setValue("lessonDurationMinutes", patch.lessonDurationMinutes, options);
+    }
+    if (patch.teachingScenario !== undefined) {
+      form.setValue("teachingScenario", patch.teachingScenario, options);
+    }
+    if (patch.difficulty !== undefined) {
+      form.setValue("difficulty", patch.difficulty, options);
+    }
+    if (patch.teachingStyles !== undefined) {
+      form.setValue("teachingStyles", patch.teachingStyles, options);
+    }
+    if (patch.overallGoal !== undefined) {
+      form.setValue("overallGoal", patch.overallGoal, options);
+    }
+  }, [form]);
+
+  useEffect(() => {
+    if (hydrated && currentStep === 3) applyPlanningDefaults();
+  }, [applyPlanningDefaults, currentStep, hydrated]);
+
+  const applyResourceDefaults = useCallback(() => {
+    if (resourceDefaultsAppliedRef.current) return;
+    resourceDefaultsAppliedRef.current = true;
+    if (form.getValues("requestedResources").length > 0) return;
+    form.setValue("requestedResources", ["course_plan"], {
+      shouldDirty: true,
+      shouldTouch: false,
+      shouldValidate: false,
+    });
+  }, [form]);
+
+  useEffect(() => {
+    if (hydrated && currentStep === 4) applyResourceDefaults();
+  }, [applyResourceDefaults, currentStep, hydrated]);
+
   const goToStep = (step: number) => {
     setStepErrorMessages([]);
     setGenerationError(null);
@@ -222,6 +266,13 @@ export function CourseWizard() {
   };
 
   const handleNext = async () => {
+    if (currentStep === 1 && !form.getValues("teachingScenario")) {
+      form.setValue("teachingScenario", "offline", {
+        shouldDirty: true,
+        shouldTouch: false,
+        shouldValidate: false,
+      });
+    }
     const valid = await form.trigger(STEP_FIELDS[currentStep], { shouldFocus: true });
     if (!valid) {
       setStepErrorMessages(
@@ -230,6 +281,8 @@ export function CourseWizard() {
       return;
     }
     setStepErrorMessages([]);
+    if (currentStep === 2) applyPlanningDefaults();
+    if (currentStep === 3) applyResourceDefaults();
     setCurrentStep((step) => Math.min(step + 1, 5));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -319,6 +372,7 @@ export function CourseWizard() {
     setGenerationError(null);
     setProjectId(null);
     projectIdRef.current = null;
+    resourceDefaultsAppliedRef.current = false;
     window.history.replaceState(null, "", "/courses/new");
     setDraftState("idle");
   };
@@ -366,7 +420,7 @@ export function CourseWizard() {
                 <CardTitle className="mt-2 text-xl sm:text-2xl">{stepMeta.title}</CardTitle>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {currentStep === 5
-                    ? "检查课程需求，确认无误后生成可扩展的 AI 课程蓝图。"
+                    ? "确认课程设置，EduFlow AI 将据此创建课程蓝图与教学方案。"
                     : "填写的信息会自动保存为当前设备上的本地草稿。"}
                 </p>
               </div>
