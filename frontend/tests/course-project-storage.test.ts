@@ -8,6 +8,7 @@ import {
   COURSE_PROJECT_STORAGE_KEY,
   CourseProjectStorageError,
   createDraftCourseProject,
+  deleteCourseProject,
   finalizeCourseProject,
   getCourseProject,
   listCourseProjects,
@@ -115,6 +116,16 @@ describe("CourseProject storage", () => {
     expect(() => getCourseProject(window.localStorage, "missing-project")).not.toThrow();
     expect(getCourseProject(window.localStorage, "missing-project")).toBeNull();
     getItem.mockRestore();
+  });
+
+  it("deletes only the requested CourseProject and safely ignores a missing project", () => {
+    const first = createDraftCourseProject(window.localStorage, { courseTitle: "保留项目" });
+    const second = createDraftCourseProject(window.localStorage, { courseTitle: "删除项目" });
+
+    expect(deleteCourseProject(window.localStorage, second.id)).toBe(true);
+    expect(listCourseProjects(window.localStorage).map((project) => project.id)).toEqual([first.id]);
+    expect(deleteCourseProject(window.localStorage, "missing-project")).toBe(false);
+    expect(listCourseProjects(window.localStorage)).toHaveLength(1);
   });
 
   it("migrates a legacy draft and matching session blueprint once", () => {

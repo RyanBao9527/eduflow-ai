@@ -12,7 +12,10 @@ import { Button } from "@/components/ui/button";
 import { CourseProjectList } from "@/features/dashboard/course-project-list";
 import { MetricCard } from "@/features/dashboard/metric-card";
 import { migrateLegacyCourseProject } from "@/features/course-workspace/course-project-migration";
-import { listCourseProjects } from "@/features/course-workspace/course-project-storage";
+import {
+  deleteCourseProject,
+  listCourseProjects,
+} from "@/features/course-workspace/course-project-storage";
 import type { CourseProject } from "@/features/course-workspace/course-project-schema";
 import type { CourseSummary, DashboardMetric } from "@/types/course";
 import { useEffect, useState } from "react";
@@ -63,6 +66,7 @@ function getMetrics(projects: CourseProject[]): DashboardMetric[] {
 export function DashboardView() {
   const [projects, setProjects] = useState<CourseProject[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -76,6 +80,23 @@ export function DashboardView() {
       active = false;
     };
   }, []);
+
+  const handleDeleteCourse = (projectId: string) => {
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+
+    const confirmed = window.confirm("确定删除该课程项目吗？删除后无法恢复");
+    if (!confirmed) return;
+
+    try {
+      const deleted = deleteCourseProject(window.localStorage, projectId);
+      if (!deleted) return;
+      setProjects((currentProjects) => currentProjects.filter((item) => item.id !== projectId));
+      setDeleteError(null);
+    } catch {
+      setDeleteError("课程项目删除失败，请稍后重试。");
+    }
+  };
 
   const courses = projects.map(toCourseSummary);
   const dashboardMetrics = getMetrics(projects);
@@ -137,7 +158,14 @@ export function DashboardView() {
                   <p className="mt-1 text-sm text-muted-foreground">按最近更新时间排列，可继续填写、确认蓝图或进入 Workspace</p>
                 </div>
               </div>
-              {hydrated ? <CourseProjectList courses={courses} /> : (
+              {deleteError ? (
+                <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {deleteError}
+                </p>
+              ) : null}
+              {hydrated ? (
+                <CourseProjectList courses={courses} onDeleteCourse={handleDeleteCourse} />
+              ) : (
                 <div className="rounded-2xl border bg-white p-8 text-center text-sm text-muted-foreground">正在加载课程项目…</div>
               )}
             </section>

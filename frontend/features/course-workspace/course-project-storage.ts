@@ -173,10 +173,14 @@ export function saveEditedCourseProject(storage: Storage, project: CourseProject
 }
 
 export function deleteCourseProject(storage: Storage, id: string) {
-  const projects = readProjects(storage).filter((project) => project.id !== id);
+  const existingProjects = readProjects(storage);
+  const projects = existingProjects.filter((project) => project.id !== id);
+  if (projects.length === existingProjects.length) return false;
+
   if (projects.length === 0) {
     removeProjects(storage);
-    return;
+    return true;
   }
   writeProjects(storage, projects);
+  return true;
 }
