@@ -1,5 +1,8 @@
-import { ArrowUpRight, Clock3, MoreHorizontal } from "lucide-react";
+"use client";
+
+import { ArrowUpRight, Clock3, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,9 +29,13 @@ const accentStyle = {
 
 interface CourseCardProps {
   course: CourseSummary;
+  onDelete: (projectId: string) => void;
 }
 
-export function CourseCard({ course }: CourseCardProps) {
+export function CourseCard({ course, onDelete }: CourseCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = `course-actions-${course.id}`;
+
   return (
     <Card className="group overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(23,32,51,0.08)]">
       <div className={cn("h-1.5 bg-gradient-to-r", accentStyle[course.accent])} />
@@ -49,9 +56,37 @@ export function CourseCard({ course }: CourseCardProps) {
               {course.lessonCount === null ? " · 课时待设置" : ` · ${course.lessonCount} 课时`}
             </p>
           </div>
-          <Button variant="ghost" size="icon" className="-mr-2 -mt-2" aria-label={`更多操作：${course.title}`}>
-            <MoreHorizontal className="size-[18px]" />
-          </Button>
+          <div className="relative -mr-2 -mt-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`更多操作：${course.title}`}
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <MoreHorizontal className="size-[18px]" />
+            </Button>
+            {menuOpen ? (
+              <div
+                id={menuId}
+                className="absolute right-0 top-10 z-10 w-36 rounded-lg border bg-white p-1 shadow-lg"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-destructive hover:bg-red-50 hover:text-destructive"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete(course.id);
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                  删除课程项目
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-6 flex items-center justify-between border-t pt-4">

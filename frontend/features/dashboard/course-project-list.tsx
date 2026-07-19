@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { CourseCard } from "@/features/dashboard/course-card";
 import type { CourseSummary } from "@/types/course";
 
-export function CourseProjectList({ courses }: { courses: CourseSummary[] }) {
+interface CourseProjectListProps {
+  courses: CourseSummary[];
+  onDeleteCourse: (projectId: string) => void;
+}
+
+export function CourseProjectList({ courses, onDeleteCourse }: CourseProjectListProps) {
   if (courses.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed bg-white px-6 py-14 text-center">
@@ -19,8 +24,9 @@ export function CourseProjectList({ courses }: { courses: CourseSummary[] }) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {courses.map((course) => <CourseCard key={course.id} course={course} />)}
+      {courses.map((course) => (
+        <CourseCard key={course.id} course={course} onDelete={onDeleteCourse} />
+      ))}
     </div>
   );
 }
-
