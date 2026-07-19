@@ -58,6 +58,49 @@ SLIDE_STRUCTURAL_MODIFIERS = (
     "的",
 )
 
+SLIDE_KNOWLEDGE_SPLITTER = re.compile(r"以及|与|和|及|、|同|或")
+SLIDE_EXPLANATORY_PREFIXES = (
+    "介绍",
+    "讲解",
+    "说明",
+    "展示",
+    "呈现",
+    "使用",
+    "围绕",
+    "通过",
+    "结合",
+    "认识",
+    "理解",
+    "掌握",
+    "回顾",
+    "总结",
+    "完成",
+    "引导",
+    "组织",
+    "带领",
+    "帮助",
+)
+SLIDE_EXPLANATORY_SUFFIXES = (
+    "的关系",
+    "关系",
+    "基础",
+    "概念",
+    "内容",
+    "方法",
+    "原理",
+    "作用",
+    "应用",
+    "任务",
+    "活动",
+    "步骤",
+    "示意图",
+    "流程图",
+    "图示",
+    "练习",
+    "实践",
+    "要求",
+)
+
 
 class ResourceConsistencyError(ValueError):
     def __init__(self, failure_type: str, message: str) -> None:
@@ -248,8 +291,9 @@ def _reject_ungrounded_slide_content(
         value
         for value in values
         if not _is_structural_slide_point(value)
-        and not any(
-            _is_semantically_related(allowed, value) for allowed in allowed_values
+        and any(
+            not _is_grounded(candidate, allowed_values)
+            for candidate in _slide_knowledge_candidates(value)
         )
     ]
     if ungrounded:
@@ -257,6 +301,24 @@ def _reject_ungrounded_slide_content(
             "extra concepts",
             "Generated slide outline contains content outside the canonical lesson context",
         )
+
+
+def _slide_knowledge_candidates(value: str) -> list[str]:
+    normalized = _normalize(value)
+    candidates: list[str] = []
+    for chunk in SLIDE_KNOWLEDGE_SPLITTER.split(normalized):
+        candidate = chunk
+        for prefix in sorted(SLIDE_EXPLANATORY_PREFIXES, key=len, reverse=True):
+            if candidate.startswith(prefix):
+                candidate = candidate[len(prefix) :]
+                break
+        for suffix in sorted(SLIDE_EXPLANATORY_SUFFIXES, key=len, reverse=True):
+            if candidate.endswith(suffix):
+                candidate = candidate[: -len(suffix)]
+                break
+        if candidate:
+            candidates.append(candidate)
+    return candidates
 
 
 def _require_coverage(

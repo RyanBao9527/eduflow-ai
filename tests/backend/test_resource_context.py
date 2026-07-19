@@ -174,6 +174,52 @@ def test_rejects_slide_outline_with_a_real_extra_concept() -> None:
     assert exc_info.value.failure_type == "extra concepts"
 
 
+def test_rejects_mixed_allowed_and_extra_slide_knowledge() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["循环与神经网络的关系"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+    assert exc_info.value.failure_type == "extra concepts"
+
+
+def test_accepts_grounded_slide_explanation_with_contextual_words() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["循环用于重复执行任务"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+def test_accepts_structural_slide_text_with_grounded_concept() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["title"] = "课堂练习"
+    payload["content"]["slides"][0]["speakerNotes"] = "使用循环完成任务"
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+def test_rejects_extra_knowledge_across_multiple_slide_fields() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["title"] = "循环概念"
+    payload["content"]["slides"][0]["speakerNotes"] = "循环与神经网络的关系"
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+    assert exc_info.value.failure_type == "extra concepts"
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
