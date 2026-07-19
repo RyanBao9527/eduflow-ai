@@ -196,6 +196,39 @@ def test_accepts_grounded_slide_explanation_with_contextual_words() -> None:
     validate_resource_consistency(resource, context)
 
 
+def test_accepts_grounded_knowledge_with_structural_expression() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["循环与课堂练习"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+def test_rejects_activity_term_that_is_not_a_key_concept() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    context["lessonModel"]["activities"] = ["列表操作"]
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["列表和循环"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+    assert exc_info.value.failure_type == "extra concepts"
+
+
+def test_accepts_multiple_structural_expressions() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["学习目标、课堂练习、总结"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
 def test_accepts_structural_slide_text_with_grounded_concept() -> None:
     request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
     context = build_resource_context(request)

@@ -249,14 +249,7 @@ def validate_resource_consistency(
                     slide.speaker_notes,
                 ]
             )
-        allowed_slide_content = [
-            *lesson_model["keyConcepts"],
-            *lesson_model["lessonObjectives"],
-            *lesson_model["teachingFlow"],
-            *lesson_model["activities"],
-            *lesson_model["assessmentPoints"],
-        ]
-        _reject_ungrounded_slide_content(slide_content_text, allowed_slide_content)
+        _reject_ungrounded_slide_content(slide_content_text, allowed_concepts)
         _require_coverage(
             "learning objectives",
             lesson_model["lessonObjectives"],
@@ -294,6 +287,7 @@ def _reject_ungrounded_slide_content(
         and any(
             not _is_grounded(candidate, allowed_values)
             for candidate in _slide_knowledge_candidates(value)
+            if not _is_structural_slide_point(candidate)
         )
     ]
     if ungrounded:
