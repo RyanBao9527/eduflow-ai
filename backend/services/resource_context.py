@@ -101,6 +101,19 @@ SLIDE_EXPLANATORY_SUFFIXES = (
     "实践",
     "要求",
 )
+SLIDE_TEACHING_ACTION_TERMS = (
+    "掌握",
+    "理解",
+    "学习",
+    "认识",
+    "了解",
+    "使用",
+    "完成",
+    "练习",
+    "复习",
+    "巩固",
+    "应用",
+)
 SLIDE_CONTEXTUAL_TERMS = (
     "重复执行",
     "生活案例",
@@ -112,17 +125,14 @@ SLIDE_CONTEXTUAL_TERMS = (
     "教师",
     "活动",
     "任务",
-    "练习",
     "实践",
     "目标",
     "要求",
     "步骤",
     "总结",
     "回顾",
-    "使用",
     "用于",
     "通过",
-    "完成",
     "执行",
     "观察",
     "识别",
@@ -132,20 +142,17 @@ SLIDE_CONTEXTUAL_TERMS = (
     "案例",
     "讲解",
     "介绍",
-    "巩固",
     "带领",
     "帮助",
-    "理解",
-    "掌握",
     "生活",
     "行为",
+    "知识",
     "关系",
     "概念",
     "结构",
     "内容",
     "方法",
     "作用",
-    "应用",
     "原理",
     "基础",
     "视觉",
@@ -392,6 +399,11 @@ def _is_grounded_slide_knowledge(candidate: str, allowed_values: list[str]) -> b
         return False
 
     remainder = re.sub(r"[0-9一二三四五六七八九十]+", "", remainder)
+    structural_terms = (*SLIDE_STRUCTURAL_TERMS, *SLIDE_STRUCTURAL_MODIFIERS)
+    for term in sorted(structural_terms, key=len, reverse=True):
+        remainder = remainder.replace(_normalize(term), "")
+    for term in sorted(SLIDE_TEACHING_ACTION_TERMS, key=len, reverse=True):
+        remainder = remainder.replace(_normalize(term), "")
     for term in sorted(SLIDE_CONTEXTUAL_TERMS, key=len, reverse=True):
         remainder = remainder.replace(_normalize(term), "")
     return not remainder

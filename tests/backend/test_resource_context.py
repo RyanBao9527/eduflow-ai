@@ -277,6 +277,36 @@ def test_accepts_structural_slide_text_with_grounded_concept() -> None:
     validate_resource_consistency(resource, context)
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "学习目标：掌握循环",
+        "课堂目标：理解循环并完成练习",
+        "复习循环知识",
+    ],
+)
+def test_accepts_teaching_actions_with_a_grounded_concept(value: str) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["speakerNotes"] = value
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+def test_rejects_teaching_action_with_embedded_extra_knowledge() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["speakerNotes"] = "掌握循环神经网络"
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+    assert exc_info.value.failure_type == "extra concepts"
+
+
 def test_rejects_extra_knowledge_across_multiple_slide_fields() -> None:
     request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
     context = build_resource_context(request)
