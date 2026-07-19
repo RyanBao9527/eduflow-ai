@@ -5,6 +5,21 @@ export interface CourseRecommendation {
   topic: string;
 }
 
+export interface CourseTitleSuggestion {
+  id: string;
+  title: string;
+}
+
+export type SubjectOrigin = "user" | "draft" | "default" | "unset";
+
+export const COURSE_TOPIC_TAGS = [
+  "Python编程",
+  "人工智能应用",
+  "少儿编程",
+  "数据分析",
+  "机器学习",
+] as const;
+
 interface CourseRecommendationInput {
   courseTitle?: string;
   subject?: string;
@@ -112,16 +127,53 @@ function getQuery(input: CourseRecommendationInput) {
   return input.topic?.trim() || input.subject?.trim() || input.courseTitle?.trim() || "";
 }
 
+function findRule(topic: string) {
+  const normalizedTopic = normalize(topic);
+  return recommendationRules.find((candidate) =>
+    candidate.keywords.some((keyword) => normalizedTopic.includes(normalize(keyword))),
+  );
+}
+
+export function getSubjectRecommendation(topic?: string, allowFallback = false) {
+  const query = topic?.trim() ?? "";
+  if (Array.from(query).length < 2) return undefined;
+
+  return findRule(query)?.recommendations[0]?.subject ?? (allowFallback ? "综合课程" : undefined);
+}
+
+export function getCourseTitleSuggestions(topic?: string): CourseTitleSuggestion[] {
+  const query = topic?.trim() ?? "";
+  if (Array.from(query).length < 2) return [];
+
+  const rule = findRule(query);
+  if (rule) {
+    return rule.recommendations.slice(0, 3).map((recommendation, index) => ({
+      id: `${rule.id}-title-${index + 1}`,
+      title: recommendation.title,
+    }));
+  }
+
+  return [
+    { id: "general-title-1", title: `${query}入门` },
+    { id: "general-title-2", title: `${query}实践课` },
+    { id: "general-title-3", title: `${query}训练营` },
+  ];
+}
+
+export function getDefaultCourseDescription(topic?: string) {
+  const query = topic?.trim() ?? "";
+  if (!query) return "";
+
+  return `围绕${query}设计的实践型课程，帮助学员循序渐进地掌握核心知识并完成基础应用。`;
+}
+
 export function getCourseRecommendations(
   input: CourseRecommendationInput,
 ): CourseRecommendation[] {
   const query = getQuery(input);
   if (Array.from(query).length < 2) return [];
 
-  const normalizedQuery = normalize(query);
-  const rule = recommendationRules.find((candidate) =>
-    candidate.keywords.some((keyword) => normalizedQuery.includes(normalize(keyword))),
-  );
+  const rule = findRule(query);
 
   if (rule) {
     return rule.recommendations.slice(0, 3).map((recommendation, index) => ({

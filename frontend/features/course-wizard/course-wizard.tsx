@@ -32,6 +32,10 @@ import {
 } from "@/features/course-wizard/course-brief-schema";
 import { getPlanningDefaultPatch } from "@/features/course-wizard/course-planning-defaults";
 import {
+  getSubjectRecommendation,
+  type SubjectOrigin,
+} from "@/features/course-wizard/course-recommendation-rules";
+import {
   STEP_FIELDS,
   WIZARD_STEPS,
 } from "@/features/course-wizard/constants";
@@ -60,7 +64,6 @@ import {
 } from "@/features/course-workspace/course-project-storage";
 
 const stepComponents = [
-  BasicInfoStep,
   TargetLearnersStep,
   PlanningStyleStep,
   ResourceSelectionStep,
@@ -85,8 +88,11 @@ export function CourseWizard() {
   const [generationError, setGenerationError] = useState<CourseGenerationApiError | null>(null);
   const [resultNotice, setResultNotice] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [subjectOrigin, setSubjectOriginState] = useState<SubjectOrigin>("unset");
   const inFlightRef = useRef(false);
   const resourceDefaultsAppliedRef = useRef(false);
+  const subjectHydrationCheckedRef = useRef(false);
+  const subjectOriginRef = useRef<SubjectOrigin>("unset");
 
   const form = useForm<CourseBriefFormValues, unknown, CourseBrief>({
     resolver: zodResolver(courseBriefSchema),
@@ -95,6 +101,11 @@ export function CourseWizard() {
     defaultValues: DEFAULT_COURSE_BRIEF_VALUES,
   });
   const { reset } = form;
+
+  const updateSubjectOrigin = useCallback((origin: SubjectOrigin) => {
+    subjectOriginRef.current = origin;
+    setSubjectOriginState(origin);
+  }, []);
 
   const watchedValues = useWatch({ control: form.control });
   const watchedValuesSignature = JSON.stringify(watchedValues);
@@ -127,6 +138,8 @@ export function CourseWizard() {
         ...DEFAULT_COURSE_BRIEF_VALUES,
         ...values,
       } as CourseBriefFormValues);
+      subjectOriginRef.current = values.subject?.trim() ? "draft" : "unset";
+      subjectHydrationCheckedRef.current = false;
       setCurrentStep(project?.wizardStep ?? 1);
       if (project) {
         setProjectId(project.id);
@@ -143,6 +156,23 @@ export function CourseWizard() {
       active = false;
     };
   }, [reset]);
+
+  useEffect(() => {
+    if (!hydrated || subjectHydrationCheckedRef.current) return;
+    subjectHydrationCheckedRef.current = true;
+
+    const values = form.getValues();
+    if (values.subject?.trim() || !values.topic?.trim()) return;
+    const recommendation = getSubjectRecommendation(values.topic);
+    if (!recommendation) return;
+
+    form.setValue("subject", recommendation, {
+      shouldDirty: true,
+      shouldTouch: false,
+      shouldValidate: false,
+    });
+    subjectOriginRef.current = "default";
+  }, [form, hydrated]);
 
   const persistDraft = useCallback(
     () => {
@@ -346,6 +376,12 @@ export function CourseWizard() {
   };
 
   const handleInvalidSubmit = (errors: FieldErrors<CourseBriefFormValues>) => {
+    if (typeof errors.courseTitle?.message === "string") {
+      setCurrentStep(1);
+      setStepErrorMessages([errors.courseTitle.message]);
+      window.queueMicrotask(() => form.setFocus("courseTitle"));
+      return;
+    }
     for (let step = 1; step <= 4; step += 1) {
       const messages = getErrorMessages(errors, STEP_FIELDS[step]);
       if (messages.length > 0) {
@@ -354,6 +390,39 @@ export function CourseWizard() {
         return;
       }
     }
+  };
+
+  const prepareCourseForGeneration = () => {
+    const current = form.getValues();
+    if (!current.subject?.trim() && subjectOriginRef.current === "unset") {
+      const recommendation = getSubjectRecommendation(current.topic, true);
+      if (recommendation) {
+        form.setValue("subject", recommendation, {
+          shouldDirty: true,
+          shouldTouch: false,
+          shouldValidate: false,
+        });
+        subjectOriginRef.current = "default";
+      }
+    }
+
+    if (!form.getValues("courseTitle")?.trim()) {
+      form.setError("courseTitle", {
+        type: "manual",
+        message: "请选择或输入课程名称",
+      });
+      setCurrentStep(1);
+      setStepErrorMessages(["请选择或输入课程名称"]);
+      window.queueMicrotask(() => form.setFocus("courseTitle"));
+      return false;
+    }
+
+    return true;
+  };
+
+  const submitForGeneration = () => {
+    if (!prepareCourseForGeneration()) return;
+    void form.handleSubmit(handleValidSubmit, handleInvalidSubmit)();
   };
 
   const handleClearDraft = () => {
@@ -373,11 +442,15 @@ export function CourseWizard() {
     setProjectId(null);
     projectIdRef.current = null;
     resourceDefaultsAppliedRef.current = false;
+    subjectHydrationCheckedRef.current = false;
+    updateSubjectOrigin("unset");
     window.history.replaceState(null, "", "/courses/new");
     setDraftState("idle");
   };
 
-  const StepComponent = currentStep <= 4 ? stepComponents[currentStep - 1] : null;
+  const StepComponent = currentStep >= 2 && currentStep <= 4
+    ? stepComponents[currentStep - 2]
+    : null;
   const stepMeta = WIZARD_STEPS[currentStep - 1];
   const displayedErrors = stepErrorMessages.length > 0 ? stepErrorMessages : currentStepErrors;
 
@@ -396,17 +469,16 @@ export function CourseWizard() {
   }
 
   const retryGeneration = () => {
-    void form.handleSubmit(handleValidSubmit, handleInvalidSubmit)();
+    submitForGeneration();
   };
 
   return (
     <Form {...form}>
       <form
-        onSubmit={
-          // The request lock is read only after the submit event starts.
-          // eslint-disable-next-line react-hooks/refs
-          form.handleSubmit(handleValidSubmit, handleInvalidSubmit)
-        }
+        onSubmit={(event) => {
+          event.preventDefault();
+          submitForGeneration();
+        }}
         noValidate
         className="space-y-5"
       >
@@ -419,7 +491,9 @@ export function CourseWizard() {
                 </p>
                 <CardTitle className="mt-2 text-xl sm:text-2xl">{stepMeta.title}</CardTitle>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {currentStep === 5
+                  {currentStep === 1
+                    ? "告诉 AI 你想开发什么课程。"
+                    : currentStep === 5
                     ? "确认课程设置，EduFlow AI 将据此创建课程蓝图与教学方案。"
                     : "填写的信息会自动保存为当前设备上的本地草稿。"}
                 </p>
@@ -458,7 +532,12 @@ export function CourseWizard() {
               <CourseGenerationError error={generationError} onRetry={retryGeneration} />
             )}
 
-            {StepComponent ? (
+            {currentStep === 1 ? (
+              <BasicInfoStep
+                subjectOrigin={subjectOrigin}
+                onSubjectOriginChange={updateSubjectOrigin}
+              />
+            ) : StepComponent ? (
               <StepComponent />
             ) : (
               <CourseBriefReview onEdit={goToStep} />

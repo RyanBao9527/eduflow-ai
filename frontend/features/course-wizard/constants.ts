@@ -69,7 +69,7 @@ export const MORE_RESOURCE_OPTIONS = [
 ] as const;
 
 export const WIZARD_STEPS = [
-  { number: 1, title: "课程想法", shortTitle: "想法" },
+  { number: 1, title: "创建课程基础信息", shortTitle: "想法" },
   { number: 2, title: "学员画像", shortTitle: "学员" },
   { number: 3, title: "AI 规划", shortTitle: "规划" },
   { number: 4, title: "资源方案", shortTitle: "资源" },
@@ -77,7 +77,7 @@ export const WIZARD_STEPS = [
 ] as const;
 
 export const STEP_FIELDS: Record<number, FieldPath<CourseBriefFormValues>[]> = {
-  1: ["courseTitle", "subject", "topic", "description", "teachingScenario"],
+  1: ["topic", "teachingScenario"],
   2: ["targetLearners", "ageOrGrade", "learnerLevel", "classSize"],
   3: [
     "lessonDurationMinutes",
