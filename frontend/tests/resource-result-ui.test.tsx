@@ -148,6 +148,7 @@ describe("Resource Result UI", () => {
     await user.click(screen.getByRole("button", { name: "查看PPT结构" }));
     const slides = await screen.findByRole("region", { name: "PPT课件结构结果" });
     expect(within(slides).getByText("PPT专属内容")).toBeInTheDocument();
+    expect(within(slides).getByRole("button", { name: "导出 PowerPoint" })).toBeInTheDocument();
     expect(within(slides).getByRole("button", { name: "导出 Markdown" })).toBeInTheDocument();
     expect(within(slides).queryByRole("button", { name: "导出 Word" })).not.toBeInTheDocument();
     expect(within(slides).queryByText("教案专属内容")).not.toBeInTheDocument();
@@ -215,6 +216,32 @@ describe("Resource Result UI", () => {
       status: "ready",
     });
     expect(downloadResourceArtifactMock.mock.calls[0]?.[1]).toBe("docx");
+  });
+
+  it("exports the selected historical slide outline with Lesson context", async () => {
+    const user = userEvent.setup();
+    const project = createGeneratedProject();
+    createSlideOutline(project.id, "L001", "第一版PPT结构");
+    createSlideOutline(project.id, "L001", "第二版PPT结构");
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
+
+    await user.click(await screen.findByRole("button", { name: "查看PPT结构" }));
+    const result = await screen.findByRole("region", { name: "PPT课件结构结果" });
+    await user.click(within(result).getByRole("button", { name: "查看PPT课件结构 v1" }));
+    await user.click(within(result).getByRole("button", { name: "导出 PowerPoint" }));
+
+    await waitFor(() => expect(downloadResourceArtifactMock).toHaveBeenCalledTimes(1));
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[0]).toMatchObject({
+      resourceType: "slide_outline",
+      version: 1,
+      status: "superseded",
+    });
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[1]).toBe("pptx");
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[2]).toEqual({
+      courseTitle: "Python 编程启蒙",
+      lessonTitle: "认识重复任务",
+      lessonNumber: 1,
+    });
   });
 
   it("shows a safe error when a resource export fails", async () => {

@@ -45,6 +45,14 @@ export function LessonResourceArea({
     moduleId,
     lessonId,
   });
+  const lesson = coursePlan.lessonIndex.find((item) => item.lessonId === lessonId);
+  const pptxContext = lesson
+    ? {
+        courseTitle: coursePlan.title || courseBrief.courseTitle,
+        lessonTitle: lesson.title,
+        lessonNumber: lesson.lessonNumber,
+      }
+    : undefined;
 
   const generateAndOpen = async (resourceType: ResourceType) => {
     const artifact = await generate(resourceType);
@@ -88,6 +96,7 @@ export function LessonResourceArea({
           versions={versions[visibleResourceType]}
           selectedResourceId={selectedResourceIds[visibleResourceType]}
           onSelectVersion={(resourceId) => selectVersion(visibleResourceType, resourceId)}
+          pptxContext={pptxContext}
         />
       )}
     </section>

@@ -9,6 +9,7 @@ import type {
   SlideOutlineContent,
 } from "@/features/course-resources/resource-artifact-schema";
 import { ExportPanel } from "@/features/course-export/export-panel";
+import type { PptxExportContext } from "@/features/course-export/export-types";
 
 const resourceLabels: Record<ResourceType, string> = {
   lesson_plan: "教师教案",
@@ -123,11 +124,13 @@ export function ResourceResultPanel({
   versions,
   selectedResourceId,
   onSelectVersion,
+  pptxContext,
 }: {
   resourceType: ResourceType;
   versions: ResourceArtifact[];
   selectedResourceId?: string;
   onSelectVersion: (resourceId: string) => void;
+  pptxContext?: PptxExportContext;
 }) {
   if (versions.length === 0) return null;
   const ready = versions.find((artifact) => artifact.status === "ready") ?? versions[0];
@@ -146,7 +149,11 @@ export function ResourceResultPanel({
           <p className="mt-1 text-xs text-muted-foreground">只读内容 · {resourceLabels[resourceType]}</p>
         </div>
         <div className="flex flex-col items-end gap-3">
-          <ExportPanel key={selected.resourceId} artifact={selected} />
+          <ExportPanel
+            key={selected.resourceId}
+            artifact={selected}
+            pptxContext={pptxContext}
+          />
           {versions.length > 1 && (
             <nav aria-label={`${resourceLabels[resourceType]}历史版本`} className="flex flex-wrap items-center gap-1.5">
               <History className="mr-1 size-4 text-muted-foreground" />

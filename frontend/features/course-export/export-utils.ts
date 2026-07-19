@@ -160,8 +160,11 @@ export function getResourceExportFileName(
   format: ResourceExportFormat,
 ) {
   const artifact = parseResourceArtifactForExport(input);
-  const extension = format === "docx" ? "docx" : "md";
-  return `eduflow-${artifact.lessonId}-${RESOURCE_FILE_NAMES[artifact.resourceType]}-v${artifact.version}.${extension}`;
+  const extension = format === "markdown" ? "md" : format;
+  const resourceName = format === "pptx"
+    ? "slides"
+    : RESOURCE_FILE_NAMES[artifact.resourceType];
+  return `eduflow-${artifact.lessonId}-${resourceName}-v${artifact.version}.${extension}`;
 }
 
 export function createMarkdownExportBlob(input: unknown) {

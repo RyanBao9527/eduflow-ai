@@ -9,6 +9,7 @@ import {
   RESOURCE_EXPORT_FORMATS,
   RESOURCE_EXPORT_MIME_TYPES,
   ResourceExportError,
+  type PptxExportContext,
   type ResourceExportFile,
   type ResourceExportFormat,
 } from "@/features/course-export/export-types";
@@ -16,6 +17,7 @@ import {
 export async function createResourceExportFile(
   input: unknown,
   format: ResourceExportFormat,
+  pptxContext?: PptxExportContext,
 ): Promise<ResourceExportFile> {
   const artifact = parseResourceArtifactForExport(input);
   if (!RESOURCE_EXPORT_FORMATS[artifact.resourceType].includes(format)) {
@@ -24,13 +26,31 @@ export async function createResourceExportFile(
 
   const blob = format === "markdown"
     ? createMarkdownExportBlob(artifact)
-    : await createDocxFile(artifact);
+    : format === "docx"
+      ? await createDocxFile(artifact)
+      : await createPptxFile(artifact, pptxContext);
 
   return {
     blob,
     fileName: getResourceExportFileName(artifact, format),
     mimeType: RESOURCE_EXPORT_MIME_TYPES[format],
   };
+}
+
+async function createPptxFile(
+  artifact: ResourceArtifact,
+  context?: PptxExportContext,
+) {
+  if (artifact.resourceType !== "slide_outline") {
+    throw new ResourceExportError("只有 PPT课件结构支持 PowerPoint 导出。");
+  }
+  if (!context) {
+    throw new ResourceExportError("PPTX 导出缺少课程或课时信息。");
+  }
+  const { createSlideOutlinePptxBlob } = await import(
+    "@/features/course-export/pptx-exporter"
+  );
+  return createSlideOutlinePptxBlob(artifact, context);
 }
 
 async function createDocxFile(artifact: ResourceArtifact) {
@@ -46,8 +66,9 @@ async function createDocxFile(artifact: ResourceArtifact) {
 export async function downloadResourceArtifact(
   input: unknown,
   format: ResourceExportFormat,
+  pptxContext?: PptxExportContext,
 ) {
-  const file = await createResourceExportFile(input, format);
+  const file = await createResourceExportFile(input, format, pptxContext);
   downloadBlob(file.blob, file.fileName);
   return file;
 }
