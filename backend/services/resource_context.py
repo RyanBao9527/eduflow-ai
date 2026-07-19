@@ -20,6 +20,11 @@ SLIDE_STRUCTURAL_TERMS = (
     "回顾",
     "步骤",
     "要求",
+    "活动",
+    "评价",
+    "流程图",
+    "示意图",
+    "图示",
 )
 
 SLIDE_STRUCTURAL_MODIFIERS = (
@@ -39,6 +44,14 @@ SLIDE_STRUCTURAL_MODIFIERS = (
     "环节",
     "任务",
     "目标",
+    "使用",
+    "展示",
+    "呈现",
+    "视觉",
+    "简单",
+    "幻灯片",
+    "图片",
+    "示例",
     "与",
     "和",
     "及",
@@ -182,22 +195,17 @@ def validate_resource_consistency(
         )
         _require_coverage("key concepts", allowed_concepts, generated_concepts)
     elif isinstance(resource, GeneratedSlideOutlineResource):
-        slide_key_points = [
-            point
-            for slide in resource.content.slides
-            for point in slide.key_points
-        ]
-        slide_content = [resource.content.overview] + [
-            " ".join(
+        slide_content_text = [resource.content.overview]
+        for slide in resource.content.slides:
+            slide_content_text.extend(
                 [
                     slide.title,
                     slide.purpose,
                     *slide.key_points,
+                    slide.visual_suggestion,
                     slide.speaker_notes,
                 ]
             )
-            for slide in resource.content.slides
-        ]
         allowed_slide_content = [
             *lesson_model["keyConcepts"],
             *lesson_model["lessonObjectives"],
@@ -205,14 +213,14 @@ def validate_resource_consistency(
             *lesson_model["activities"],
             *lesson_model["assessmentPoints"],
         ]
-        _reject_ungrounded_slide_points(slide_key_points, allowed_slide_content)
+        _reject_ungrounded_slide_content(slide_content_text, allowed_slide_content)
         _require_coverage(
             "learning objectives",
             lesson_model["lessonObjectives"],
-            slide_content,
+            slide_content_text,
         )
-        _require_coverage("key concepts", allowed_concepts, slide_content)
-        stage_text = slide_content
+        _require_coverage("key concepts", allowed_concepts, slide_content_text)
+        stage_text = slide_content_text
     else:  # pragma: no cover - GeneratedResource currently has two variants
         return
 
@@ -232,7 +240,7 @@ def _reject_ungrounded(values: list[str], allowed_values: list[str]) -> None:
         )
 
 
-def _reject_ungrounded_slide_points(
+def _reject_ungrounded_slide_content(
     values: list[str],
     allowed_values: list[str],
 ) -> None:

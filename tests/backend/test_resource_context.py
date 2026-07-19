@@ -129,12 +129,13 @@ def test_rejects_slide_outline_missing_a_lesson_key_concept() -> None:
     context["lessonModel"]["teachingFlow"] = ["完成循环体验活动"]
     context["lessonModel"]["activities"] = ["完成循环体验活动"]
     payload = make_slide_outline()
-    payload["content"]["overview"] = "使用六页幻灯片完成循环体验活动。"
+    payload["content"]["overview"] = "课堂练习"
     for slide in payload["content"]["slides"]:
-        slide["title"] = slide["title"].replace("重复", "课堂")
-        slide["purpose"] = slide["purpose"].replace("重复", "课堂")
+        slide["title"] = "课堂练习"
+        slide["purpose"] = "练习要求"
         slide["keyPoints"] = ["循环概念"]
-        slide["speakerNotes"] = slide["speakerNotes"].replace("重复", "课堂")
+        slide["visualSuggestion"] = "使用简单流程图"
+        slide["speakerNotes"] = "完成练习并回顾循环概念"
     resource = GeneratedSlideOutlineResource.model_validate(payload)
 
     with pytest.raises(ResourceConsistencyError, match="key concepts") as exc_info:
@@ -171,6 +172,45 @@ def test_rejects_slide_outline_with_a_real_extra_concept() -> None:
     with pytest.raises(ResourceConsistencyError) as exc_info:
         validate_resource_consistency(resource, context)
     assert exc_info.value.failure_type == "extra concepts"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("title", "神经网络基础"),
+        ("purpose", "介绍神经网络基础"),
+        ("visualSuggestion", "展示神经网络示意图"),
+        ("speakerNotes", "讲解神经网络基础"),
+    ],
+)
+def test_rejects_extra_concept_in_any_slide_content_field(
+    field: str,
+    value: str,
+) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0][field] = value
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+    assert exc_info.value.failure_type == "extra concepts"
+
+
+def test_accepts_structural_slide_text_across_content_fields() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    first_slide = payload["content"]["slides"][0]
+    first_slide["title"] = "课堂练习"
+    first_slide["purpose"] = "练习要求"
+    first_slide["keyPoints"] = ["活动"]
+    first_slide["visualSuggestion"] = "使用简单流程图"
+    first_slide["speakerNotes"] = "完成练习并回顾循环概念"
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
 
 
 def test_resource_context_does_not_change_request_contract() -> None:
