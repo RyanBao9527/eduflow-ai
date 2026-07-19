@@ -10,7 +10,10 @@ import {
   resourceArtifactToMarkdown,
 } from "@/features/course-export/export-utils";
 import { createResourceExportFile } from "@/features/course-export/export-service";
-import { RESOURCE_EXPORT_MIME_TYPES } from "@/features/course-export/export-types";
+import {
+  RESOURCE_EXPORT_MIME_TYPES,
+  type PptxExportContext,
+} from "@/features/course-export/export-types";
 import {
   makeLessonPlanContent,
   makeSlideOutlineContent,
@@ -42,6 +45,12 @@ function createSlideOutline() {
     content: makeSlideOutlineContent(),
   });
 }
+
+const pptxContext: PptxExportContext = {
+  courseTitle: "Python 编程启蒙",
+  lessonTitle: "认识重复任务",
+  lessonNumber: 1,
+};
 
 describe("course resource export", () => {
   it("serializes a lesson plan to complete Markdown", () => {
@@ -90,6 +99,20 @@ describe("course resource export", () => {
     expect(file.blob.size).toBeGreaterThan(100);
   });
 
+  it("generates a real PPTX Blob for a slide outline", async () => {
+    const file = await createResourceExportFile(
+      createSlideOutline(),
+      "pptx",
+      pptxContext,
+    );
+    const bytes = new Uint8Array(await file.blob.arrayBuffer());
+
+    expect(file.fileName).toBe("eduflow-L001-slides-v1.pptx");
+    expect(file.mimeType).toBe(RESOURCE_EXPORT_MIME_TYPES.pptx);
+    expect(file.blob.type).toBe(RESOURCE_EXPORT_MIME_TYPES.pptx);
+    expect(Array.from(bytes.slice(0, 2))).toEqual([0x50, 0x4b]);
+  });
+
   it("downloads through an object URL and always releases it", () => {
     const createObjectURL = vi.fn(() => "blob:course-export");
     const revokeObjectURL = vi.fn();
@@ -115,6 +138,30 @@ describe("course resource export", () => {
     await expect(createResourceExportFile(createSlideOutline(), "docx")).rejects.toThrow(
       "当前课程资源不支持所选导出格式。",
     );
+    await expect(createResourceExportFile(createSlideOutline(), "pptx")).rejects.toThrow(
+      "PPTX 导出缺少课程或课时信息。",
+    );
+  });
+
+  it("exports a historical PPTX version without modifying Artifact state", async () => {
+    createSlideOutline();
+    createSlideOutline();
+    const before = listResourceArtifactVersions(window.localStorage, {
+      courseProjectId: "project-export",
+      lessonId: "L001",
+      resourceType: "slide_outline",
+    });
+    const historical = before.find((artifact) => artifact.version === 1)!;
+    const snapshot = structuredClone(before);
+
+    const file = await createResourceExportFile(historical, "pptx", pptxContext);
+
+    expect(file.fileName).toBe("eduflow-L001-slides-v1.pptx");
+    expect(listResourceArtifactVersions(window.localStorage, {
+      courseProjectId: "project-export",
+      lessonId: "L001",
+      resourceType: "slide_outline",
+    })).toEqual(snapshot);
   });
 
   it("exports the selected historical version without modifying Artifact state", () => {
