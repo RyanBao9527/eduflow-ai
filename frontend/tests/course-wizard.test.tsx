@@ -16,7 +16,7 @@ describe("CourseWizard", () => {
 
     render(<CourseWizard />);
 
-    await screen.findByRole("heading", { name: "课程想法" });
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
     await user.type(screen.getByLabelText("课程名称"), "企业培训课程");
     await waitFor(() => expect(listCourseProjects(window.localStorage)).toHaveLength(1));
     const firstSavedAt = listCourseProjects(window.localStorage)[0]?.updatedAt;
@@ -31,35 +31,85 @@ describe("CourseWizard", () => {
     const user = userEvent.setup();
     render(<CourseWizard />);
 
-    await screen.findByRole("heading", { name: "课程想法" });
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
     await user.click(screen.getByRole("button", { name: "下一步" }));
 
     expect(await screen.findByText("请检查当前步骤")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "课程想法" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "创建课程基础信息" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "学员画像" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("教学场景")).toBeInTheDocument();
   });
 
-  it("offers local course recommendations and only fills blank fields", async () => {
+  it("offers local title suggestions without calling the network", async () => {
     const user = userEvent.setup();
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     render(<CourseWizard />);
 
-    await screen.findByRole("heading", { name: "课程想法" });
-    await user.type(screen.getByLabelText("课程名称"), "我的 Python 课程");
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
     await user.type(screen.getByLabelText("课程主题"), "Python");
+    await user.click(screen.getByRole("button", { name: "生成课程名称建议" }));
 
-    expect(screen.getByText("智能推荐")).toBeInTheDocument();
-    expect(screen.getByText("本地规则生成，无需调用 AI。选择建议后仍可继续修改。")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Python/ })).toHaveLength(3);
+    expect(screen.getByText("课程名称建议")).toBeInTheDocument();
+    expect(screen.getByText("基于课程主题的本地规则推荐，不调用 AI 或网络。选择后仍可继续修改。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Python 少儿编程入门" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Python 数据分析入门" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Python 自动化办公" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Python 少儿编程入门/ }));
 
-    expect(screen.getByLabelText("课程名称")).toHaveValue("我的 Python 课程");
-    expect(screen.getByLabelText("学科或领域")).toHaveValue("编程教育");
+    expect(screen.getByLabelText("课程名称")).toHaveValue("Python 少儿编程入门");
     expect(screen.getByLabelText("课程主题")).toHaveValue("Python");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it("uses topic tags and only fills an empty subject from local rules", async () => {
+    const user = userEvent.setup();
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
+    await user.click(screen.getByRole("button", { name: "Python编程" }));
+    await user.click(screen.getByText("更多课程设置"));
+
+    expect(screen.getByLabelText("课程主题")).toHaveValue("Python编程");
+    expect(screen.getByLabelText("课程领域")).toHaveValue("编程教育");
+
+    await user.clear(screen.getByLabelText("课程领域"));
+    await user.type(screen.getByLabelText("课程主题"), "数据分析");
+
+    expect(screen.getByLabelText("课程领域")).toHaveValue("");
+  });
+
+  it("allows an empty title to save a draft and continue the wizard", async () => {
+    const user = userEvent.setup();
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
+    await user.type(screen.getByLabelText("课程主题"), "Python编程");
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+
+    expect(await screen.findByRole("heading", { name: "学员画像" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(listCourseProjects(window.localStorage)[0]?.courseBrief).toMatchObject({
+        courseTitle: "",
+        topic: "Python编程",
+        subject: "编程教育",
+      });
+    });
+  });
+
+  it("preserves an old title-only draft and asks for its missing topic", async () => {
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 1,
+      values: { courseTitle: "旧版课程名称" },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    expect(await screen.findByText("请补充课程主题。")).toBeInTheDocument();
+    expect(screen.getByLabelText("课程名称")).toHaveValue("旧版课程名称");
+    expect(screen.getByLabelText("课程主题")).toHaveValue("");
   });
 
   it("restores a valid partial draft and its saved step", async () => {
@@ -312,6 +362,26 @@ describe("CourseWizard", () => {
     fetchSpy.mockRestore();
   });
 
+  it("returns to Step 1 without calling the API when the final title is missing", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 5,
+      values: { ...validCourseBrief, courseTitle: "" },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "确认创建" });
+    await user.click(screen.getByRole("button", { name: "创建 AI 课程" }));
+
+    expect(await screen.findByRole("heading", { name: "创建课程基础信息" })).toBeInTheDocument();
+    expect(screen.getAllByText("请选择或输入课程名称")).not.toHaveLength(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
   it("completes the upgraded five-step course creation flow", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
@@ -319,9 +389,8 @@ describe("CourseWizard", () => {
 
     render(<CourseWizard />);
 
-    await screen.findByRole("heading", { name: "课程想法" });
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
     await user.type(screen.getByLabelText("课程名称"), "Python 少儿编程");
-    await user.type(screen.getByLabelText("学科或领域"), "编程");
     await user.type(screen.getByLabelText("课程主题"), "Python 基础");
     await user.click(screen.getByRole("button", { name: "下一步" }));
 
@@ -359,7 +428,7 @@ describe("CourseWizard", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<CourseWizard />);
 
-    await screen.findByRole("heading", { name: "课程想法" });
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
     await user.type(screen.getByLabelText("课程名称"), "企业培训课程");
     await user.click(screen.getByRole("button", { name: "清除草稿" }));
 
@@ -389,7 +458,7 @@ describe("CourseWizard", () => {
     await user.click(screen.getByRole("button", { name: "清除草稿" }));
 
     expect(confirmSpy).toHaveBeenCalledOnce();
-    expect(await screen.findByRole("heading", { name: "课程想法" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "创建课程基础信息" })).toBeInTheDocument();
     expect(screen.getByLabelText("课程名称")).toHaveValue("");
     expect(listCourseProjects(window.localStorage)).toHaveLength(0);
     confirmSpy.mockRestore();
