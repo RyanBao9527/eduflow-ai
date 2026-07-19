@@ -51,6 +51,14 @@ export function LessonResourceSection({
     moduleId,
     lessonId,
   });
+  const lesson = coursePlan.lessonIndex.find((item) => item.lessonId === lessonId);
+  const pptxContext = lesson
+    ? {
+        courseTitle: coursePlan.title || courseBrief.courseTitle,
+        lessonTitle: lesson.title,
+        lessonNumber: lesson.lessonNumber,
+      }
+    : undefined;
 
   return (
     <section
@@ -132,6 +140,7 @@ export function LessonResourceSection({
             versions={versions[resourceType]}
             selectedResourceId={selectedResourceIds[resourceType]}
             onSelectVersion={(resourceId) => selectVersion(resourceType, resourceId)}
+            pptxContext={pptxContext}
           />
         ))}
       </div>
