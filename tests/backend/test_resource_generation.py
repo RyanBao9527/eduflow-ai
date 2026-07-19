@@ -195,6 +195,14 @@ def make_lesson_plan() -> dict[str, Any]:
 
 
 def make_slide_outline() -> dict[str, Any]:
+    slide_content = [
+        ("观察重复任务", "识别生活中的重复行为", ["重复"], "组织观察重复任务活动。"),
+        ("循环体验活动", "完成循环体验活动", ["循环"], "引导学员完成循环体验活动。"),
+        ("重复与循环", "说明重复任务与循环的关系", ["重复", "循环"], "结合生活案例讲解循环。"),
+        ("课堂任务", "通过任务巩固循环概念", ["循环"], "组织课堂循环任务。"),
+        ("任务回顾", "回顾重复任务的识别方法", ["重复"], "带领学员回顾重复任务。"),
+        ("总结与评价", "总结重复和循环", ["重复", "循环"], "完成课堂循环识别任务。"),
+    ]
     return {
         "resourceType": "slide_outline",
         "moduleId": "M01",
@@ -205,13 +213,16 @@ def make_slide_outline() -> dict[str, Any]:
             "slides": [
                 {
                     "slideId": f"S{number:02d}",
-                    "title": f"幻灯片 {number}",
-                    "purpose": "推进课堂讲解",
-                    "keyPoints": ["循环概念"],
+                    "title": title,
+                    "purpose": purpose,
+                    "keyPoints": key_points,
                     "visualSuggestion": "使用简单流程图",
-                    "speakerNotes": "结合生活案例进行简短讲解",
+                    "speakerNotes": speaker_notes,
                 }
-                for number in range(1, 7)
+                for number, (title, purpose, key_points, speaker_notes) in enumerate(
+                    slide_content,
+                    start=1,
+                )
             ],
             "assumptions": [],
             "qualityChecklist": ["每页目标清晰"],

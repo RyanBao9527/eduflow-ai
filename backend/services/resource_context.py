@@ -80,6 +80,7 @@ def build_resource_context(request: ResourceGenerateRequest) -> dict[str, Any]:
             "teachingFlow": teaching_flow,
             "activities": teaching_flow,
             "assessmentPoints": assessment_points,
+            "hasExplicitLessonDetail": lesson_detail is not None,
         },
         "learnerContext": {
             "targetLearners": request.course_brief.target_learners,
@@ -120,32 +121,75 @@ def validate_resource_consistency(
     resource: GeneratedResource,
     context: dict[str, Any],
 ) -> None:
-    """Reject resources whose declared knowledge points leave the lesson model."""
+    """Reject resources that drift from the canonical lesson teaching model."""
     lesson_model = context["lessonModel"]
-    allowed_concepts = [
-        *lesson_model["keyConcepts"],
-        *context["moduleContext"]["keyConcepts"],
-    ]
+    allowed_concepts = lesson_model["keyConcepts"]
 
     if isinstance(resource, GeneratedLessonPlanResource):
         generated_concepts = resource.content.key_points
+        objective_text = resource.content.objectives
+        stage_text = [
+            " ".join(
+                [
+                    stage.title,
+                    *stage.teacher_activities,
+                    *stage.learner_activities,
+                ]
+            )
+            for stage in resource.content.stages
+        ]
     elif isinstance(resource, GeneratedSlideOutlineResource):
         generated_concepts = [
             point
             for slide in resource.content.slides
             for point in slide.key_points
         ]
+        objective_text = [
+            " ".join(
+                [slide.title, slide.purpose, slide.speaker_notes]
+            )
+            for slide in resource.content.slides
+        ]
+        stage_text = objective_text
     else:  # pragma: no cover - GeneratedResource currently has two variants
         return
 
+    _reject_ungrounded(generated_concepts, allowed_concepts)
+    _require_coverage(
+        "learning objectives",
+        lesson_model["lessonObjectives"],
+        objective_text,
+    )
+    _require_coverage("key concepts", lesson_model["keyConcepts"], generated_concepts)
+
+    if lesson_model["hasExplicitLessonDetail"]:
+        _require_coverage("teaching flow", lesson_model["teachingFlow"], stage_text)
+        _require_coverage("activities", lesson_model["activities"], stage_text)
+
+
+def _reject_ungrounded(values: list[str], allowed_values: list[str]) -> None:
     ungrounded = [
-        concept
-        for concept in generated_concepts
-        if not _is_grounded(concept, allowed_concepts)
+        value for value in values if not _is_grounded(value, allowed_values)
     ]
     if ungrounded:
         raise ResourceConsistencyError(
             "Generated resource contains key points outside the canonical lesson context"
+        )
+
+
+def _require_coverage(
+    label: str,
+    expected_values: list[str],
+    generated_values: list[str],
+) -> None:
+    missing = [
+        expected
+        for expected in expected_values
+        if not any(_is_semantically_related(expected, value) for value in generated_values)
+    ]
+    if missing:
+        raise ResourceConsistencyError(
+            f"Generated resource does not cover canonical {label}"
         )
 
 
@@ -157,6 +201,35 @@ def _is_grounded(value: str, allowed_values: list[str]) -> bool:
         allowed and (allowed in normalized or normalized in allowed)
         for allowed in (_normalize(item) for item in allowed_values)
     )
+
+
+def _is_semantically_related(expected: str, actual: str) -> bool:
+    expected_normalized = _normalize(expected)
+    actual_normalized = _normalize(actual)
+    if not expected_normalized or not actual_normalized:
+        return False
+    if (
+        expected_normalized in actual_normalized
+        or actual_normalized in expected_normalized
+    ):
+        return True
+
+    expected_tokens = _meaningful_tokens(expected)
+    actual_tokens = _meaningful_tokens(actual)
+    if not expected_tokens or not actual_tokens:
+        return False
+    shared_tokens = expected_tokens & actual_tokens
+    return len(shared_tokens) >= min(2, len(expected_tokens))
+
+
+def _meaningful_tokens(value: str) -> set[str]:
+    english_tokens = set(re.findall(r"[a-z0-9]{2,}", value.lower()))
+    chinese_tokens = {
+        value[index : index + 2]
+        for index in range(len(value) - 1)
+        if re.fullmatch(r"[\u4e00-\u9fff]{2}", value[index : index + 2])
+    }
+    return english_tokens | chinese_tokens
 
 
 def _normalize(value: str) -> str:
