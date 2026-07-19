@@ -63,6 +63,60 @@ describe("CourseWizard", () => {
     fetchSpy.mockRestore();
   });
 
+  it("uses grouped topic tags and explains when a course title is required", async () => {
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
+    expect(screen.getByText("热门方向")).toBeInTheDocument();
+    expect(screen.getByText("学科与技能")).toBeInTheDocument();
+    expect(screen.getByLabelText("主题分组：企业培训")).toBeInTheDocument();
+    expect(
+      screen.getByText("展示给学生或客户的课程标题，可稍后填写；创建 AI 课程前需填写。"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("下一步将选择学习者画像，系统会据此组织课程难度和课时规划。"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the description optional and generates its local default only after user action", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
+    const descriptionDetails = screen.getByText("课程简介（可选）").closest("details");
+    expect(descriptionDetails).not.toHaveAttribute("open");
+
+    await user.type(screen.getByLabelText("课程主题"), "Python编程");
+    await user.click(screen.getByText("课程简介（可选）"));
+    await user.click(screen.getByRole("button", { name: "生成默认简介" }));
+
+    expect(screen.getByLabelText("课程简介")).toHaveValue(
+      "围绕Python编程设计的实践型课程，帮助学员循序渐进地掌握核心知识并完成基础应用。",
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("opens the optional description for a restored draft without changing its content", async () => {
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 1,
+      values: {
+        courseTitle: "旧课程简介",
+        topic: "Python编程",
+        description: "这是从旧草稿恢复的课程简介。",
+      },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "创建课程基础信息" });
+    const descriptionDetails = screen.getByText("课程简介（可选）").closest("details");
+    expect(descriptionDetails).toHaveAttribute("open");
+    expect(screen.getByLabelText("课程简介")).toHaveValue("这是从旧草稿恢复的课程简介。");
+  });
+
   it("uses topic tags and only fills an empty subject from local rules", async () => {
     const user = userEvent.setup();
     render(<CourseWizard />);
@@ -131,12 +185,12 @@ describe("CourseWizard", () => {
     render(<CourseWizard />);
 
     expect(await screen.findByRole("heading", { name: "学员画像" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "学员类型" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "年龄/教育阶段" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "学员基础" })).toBeInTheDocument();
-    expect(screen.getByLabelText("学员类型自定义内容")).toHaveValue("10–12 岁零基础学生");
-    expect(screen.getByLabelText("年龄/教育阶段自定义内容")).toHaveValue("小学高年级");
-    expect(screen.getByLabelText("学员基础自定义内容")).toHaveValue("有基础编程体验");
+    expect(screen.getByRole("radiogroup", { name: "主要学习者" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "年龄/学习阶段" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "学习基础" })).toBeInTheDocument();
+    expect(screen.getByLabelText("主要学习者其他，请说明内容")).toHaveValue("10–12 岁零基础学生");
+    expect(screen.getByLabelText("年龄/学习阶段其他，请说明内容")).toHaveValue("小学高年级");
+    expect(screen.getByLabelText("学习基础其他，请说明内容")).toHaveValue("有基础编程体验");
     fireEvent.click(screen.getByText("更多设置"));
     expect(screen.getByLabelText("班级人数（可选）")).toHaveValue(24);
   });
@@ -152,20 +206,129 @@ describe("CourseWizard", () => {
     render(<CourseWizard />);
 
     await screen.findByRole("heading", { name: "学员画像" });
-    await user.click(screen.getByRole("radio", { name: "小学生" }));
+    await user.click(screen.getByRole("radio", { name: "K12学生" }));
     await user.click(screen.getByRole("radio", { name: "小学" }));
     await user.click(screen.getByRole("radio", { name: "零基础" }));
 
-    expect(screen.getByRole("radio", { name: "小学生" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "K12学生" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "小学" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "零基础" })).toHaveAttribute("aria-checked", "true");
     await waitFor(() => {
       expect(listCourseProjects(window.localStorage)[0]?.courseBrief).toMatchObject({
-        targetLearners: "小学生",
+        targetLearners: "K12学生",
         ageOrGrade: "小学",
         learnerLevel: "零基础",
       });
     });
+  });
+
+  it("uses clear learner profile wording and preserves the existing field values", async () => {
+    const user = userEvent.setup();
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 2,
+      values: { courseTitle: "学员画像文案" },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "学员画像" });
+    expect(screen.getByText("谁会参加这门课程？")).toBeInTheDocument();
+    expect(screen.getByText("他们通常处于哪个学习阶段？")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "大学" })).toBeInTheDocument();
+
+    const customOptionButtons = screen.getAllByRole("radio", { name: "其他，请说明" });
+    await user.click(customOptionButtons[0]);
+    await user.type(screen.getByLabelText("主要学习者其他，请说明内容"), "家长");
+    await user.click(customOptionButtons[1]);
+    await user.type(screen.getByLabelText("年龄/学习阶段其他，请说明内容"), "8-10岁");
+    await user.click(customOptionButtons[2]);
+    await user.type(screen.getByLabelText("学习基础其他，请说明内容"), "有项目实践经验");
+
+    await waitFor(() => {
+      expect(listCourseProjects(window.localStorage)[0]?.courseBrief).toMatchObject({
+        targetLearners: "家长",
+        ageOrGrade: "8-10岁",
+        learnerLevel: "有项目实践经验",
+      });
+    });
+  });
+
+  it("defaults an empty education stage to adult only for adult learner types", async () => {
+    const user = userEvent.setup();
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 2,
+      values: { courseTitle: "成人学习课程" },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "学员画像" });
+    await user.click(screen.getByRole("radio", { name: "教师" }));
+
+    expect(screen.getByRole("radio", { name: "成人（默认）" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.queryByRole("radio", { name: "小学" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(listCourseProjects(window.localStorage)[0]?.courseBrief).toMatchObject({
+        targetLearners: "教师",
+        ageOrGrade: "成人",
+      });
+    });
+  });
+
+  it("preserves a saved or user-selected education stage when the learner type becomes adult", async () => {
+    const user = userEvent.setup();
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 2,
+      values: {
+        courseTitle: "学习阶段兼容测试",
+        targetLearners: "大学生",
+        ageOrGrade: "大学",
+      },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "学员画像" });
+    await user.click(screen.getByRole("radio", { name: "企业员工" }));
+
+    expect(screen.getByLabelText("年龄/学习阶段其他，请说明内容")).toHaveValue("大学");
+    await waitFor(() => {
+      expect(listCourseProjects(window.localStorage)[0]?.courseBrief).toMatchObject({
+        targetLearners: "企业员工",
+        ageOrGrade: "大学",
+      });
+    });
+  });
+
+  it("does not restore the adult default after a user clears the education stage", async () => {
+    const user = userEvent.setup();
+    saveCourseWizardDraft(window.localStorage, {
+      currentStep: 2,
+      values: {
+        courseTitle: "手动清空学习阶段",
+        targetLearners: "K12学生",
+        ageOrGrade: "小学",
+      },
+      status: "draft",
+    });
+
+    render(<CourseWizard />);
+
+    await screen.findByRole("heading", { name: "学员画像" });
+    await user.click(screen.getAllByRole("radio", { name: "其他，请说明" })[1]);
+    await user.click(screen.getByRole("radio", { name: "职场人士" }));
+
+    expect(screen.getByLabelText("年龄/学习阶段其他，请说明内容")).toHaveValue("");
+    expect(screen.getByRole("radio", { name: "成人（默认）" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
   });
 
   it("fills local planning defaults when Step 3 is first opened", async () => {
@@ -395,7 +558,7 @@ describe("CourseWizard", () => {
     await user.click(screen.getByRole("button", { name: "下一步" }));
 
     expect(await screen.findByRole("heading", { name: "学员画像" })).toBeInTheDocument();
-    await user.click(screen.getByRole("radio", { name: "小学生" }));
+    await user.click(screen.getByRole("radio", { name: "K12学生" }));
     await user.click(screen.getByRole("radio", { name: "小学" }));
     await user.click(screen.getByRole("radio", { name: "零基础" }));
     await user.click(screen.getByRole("button", { name: "下一步" }));
@@ -414,7 +577,7 @@ describe("CourseWizard", () => {
 
     expect(await screen.findByRole("heading", { name: "确认创建" })).toBeInTheDocument();
     expect(screen.getByText("Python 少儿编程")).toBeInTheDocument();
-    expect(screen.getByText("小学生 · 小学 · 零基础")).toBeInTheDocument();
+    expect(screen.getByText("K12学生 · 小学 · 零基础")).toBeInTheDocument();
     expect(screen.getByText("8 课时 × 45 分钟")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "创建 AI 课程" }));
 
