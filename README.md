@@ -6,7 +6,7 @@
 
 将课程想法转化为结构化 AI Course Blueprint，并通过 Course Workspace 与 Lesson Workspace 持续完成课程设计和单课备课。
 
-[![Version](https://img.shields.io/badge/version-v0.6.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.6.0)
+[![Version](https://img.shields.io/badge/version-v0.6.2-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.6.2)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> **Current Version: v0.6.0 — Lesson Workspace.** 课程项目现已支持按课时进入独立备课工作台，生成、查看并管理教师教案和 PPT 课件结构版本。
+> **Current Version: v0.6.2 — Course Creation UX Refinement.** 课程创建向导现采用主题优先的信息架构，并通过清晰的学员画像帮助教师更快完成课程需求填写。
 
 ## Product Positioning
 
@@ -142,6 +142,24 @@ ResourceArtifact
 
 ## Current Version
 
+### v0.6.2 — Course Creation UX Refinement
+
+v0.6.2 聚焦课程创建体验：课程主题优先、渐进补充课程简介，并用“主要学习者、年龄/学习阶段、学习基础”替代易混淆的学员字段语义。
+
+Highlights:
+
+- Topic-first course creation with grouped local topic suggestions.
+- Clear timing for course title completion and optional course description disclosure.
+- Learner profile cards separate learner identity from learning stage.
+- Adult learner defaults that preserve manual choices and legacy drafts.
+- No changes to CourseBrief, CourseProject, backend APIs, prompts, or LLM providers.
+
+### v0.6.1 — Course Topic First UX
+
+- Topic-first Step 1 workflow.
+- Local course title suggestions and subject recommendations.
+- Existing data compatibility preserved.
+
 ### v0.6.0 — Lesson Workspace
 
 v0.6.0 将单课资源生成升级为独立的 Lesson Workspace，让教师围绕具体课时完成教学准备，同时保持 CourseProject、CoursePlan、ResourceArtifact 和后端生成 API 兼容。
@@ -213,6 +231,19 @@ Not included:
 - Teacher lesson plan and slide outline generation.
 - Read-only current and historical ResourceArtifact viewing.
 - Course Workspace lesson navigation and resource status summaries.
+
+### v0.6.1 — Course Topic First UX
+
+- Course topic is the primary Step 1 input.
+- Local course title suggestion system and subject recommendation rules.
+- Existing CourseBrief and CourseProject data compatibility.
+
+### v0.6.2 — Course Creation UX Refinement
+
+- Grouped local topic suggestions and progressive optional description entry.
+- Clear course title completion guidance before AI course creation.
+- Learner profile semantics that separate identity, learning stage, and foundation.
+- Adult-stage defaults that preserve manual choices and legacy drafts.
 
 ### Next
 
