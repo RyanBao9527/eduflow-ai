@@ -23,6 +23,10 @@ from backend.services.llm.base import (
     LLMUsage,
     StructuredOutputResult,
 )
+from backend.services.resource_context import (
+    build_resource_context,
+    validate_resource_consistency,
+)
 
 
 class ResourceGenerationInvalidOutputError(Exception):
@@ -62,7 +66,11 @@ class ResourceGenerationService:
             total_usage += result.usage
             try:
                 resource = self._parse_and_validate(result, request)
-            except (ValueError, ValidationError, json.JSONDecodeError) as exc:
+            except (
+                ValueError,
+                ValidationError,
+                json.JSONDecodeError,
+            ) as exc:
                 if attempt == 1:
                     continue
                 raise ResourceGenerationInvalidOutputError from exc
@@ -146,6 +154,7 @@ class ResourceGenerationService:
             ]
             if slide_ids != expected_slide_ids:
                 raise ValueError("Slide IDs must be sequential")
+        validate_resource_consistency(resource, build_resource_context(request))
         return resource
 
     def _estimate_cost(self, usage: LLMUsage) -> float | None:
