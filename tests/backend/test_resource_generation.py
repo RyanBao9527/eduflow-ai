@@ -242,6 +242,10 @@ def test_generates_lesson_plan_with_mock_llm(monkeypatch: Any) -> None:
     assert payload["generation"]["promptVersion"] == PROMPT_VERSION
     assert payload["generation"]["usage"]["totalTokens"] == 300
     assert provider.requests[0].max_output_tokens == 4500
+    assert PROMPT_VERSION == "resource-generation-v2"
+    assert "CANONICAL_RESOURCE_CONTEXT" in provider.requests[0].user_prompt
+    assert '"teachingFlow"' in provider.requests[0].user_prompt
+    assert '"assessmentPoints"' in provider.requests[0].user_prompt
     assert "Markdown" in SYSTEM_PROMPT
     assert "PPT、Word、Excel" in SYSTEM_PROMPT
 
@@ -328,6 +332,23 @@ def test_rejects_schema_invalid_output_after_one_retry(monkeypatch: Any) -> None
 
     assert response.status_code == 502
     assert response.json()["error"]["message"] == "AI 返回的课程资源未通过结构校验，请重试。"
+    assert len(provider.requests) == 2
+
+
+def test_rejects_resource_with_ungrounded_key_points(monkeypatch: Any) -> None:
+    invalid = make_lesson_plan()
+    invalid["content"]["keyPoints"] = ["神经网络"]
+    provider = FakeProvider(
+        [
+            json.dumps(invalid, ensure_ascii=False),
+            json.dumps(invalid, ensure_ascii=False),
+        ]
+    )
+
+    response = post_with_provider(monkeypatch, provider, make_request())
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "LLM_INVALID_OUTPUT"
     assert len(provider.requests) == 2
 
 
