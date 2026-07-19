@@ -186,11 +186,48 @@ def test_rejects_mixed_allowed_and_extra_slide_knowledge() -> None:
     assert exc_info.value.failure_type == "extra concepts"
 
 
+@pytest.mark.parametrize(
+    "value",
+    ["循环神经网络", "循环在神经网络中的应用"],
+)
+def test_rejects_embedded_extra_knowledge_without_a_connector(value: str) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = [value]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+    assert exc_info.value.failure_type == "extra concepts"
+
+
 def test_accepts_grounded_slide_explanation_with_contextual_words() -> None:
     request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
     context = build_resource_context(request)
     payload = make_slide_outline()
     payload["content"]["slides"][0]["keyPoints"] = ["循环用于重复执行任务"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+def test_accepts_combined_key_concepts_with_a_structural_expression() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    context["lessonModel"]["keyConcepts"].append("列表")
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["列表循环练习"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+def test_accepts_key_concept_with_a_structural_expression() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["循环课堂练习"]
     resource = GeneratedSlideOutlineResource.model_validate(payload)
 
     validate_resource_consistency(resource, context)

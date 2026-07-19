@@ -39,6 +39,7 @@ SLIDE_STRUCTURAL_MODIFIERS = (
     "操作",
     "完成",
     "学生",
+    "学员",
     "教师",
     "阶段",
     "环节",
@@ -99,6 +100,66 @@ SLIDE_EXPLANATORY_SUFFIXES = (
     "练习",
     "实践",
     "要求",
+)
+SLIDE_CONTEXTUAL_TERMS = (
+    "重复执行",
+    "生活案例",
+    "课堂",
+    "课程",
+    "教学",
+    "学生",
+    "学员",
+    "教师",
+    "活动",
+    "任务",
+    "练习",
+    "实践",
+    "目标",
+    "要求",
+    "步骤",
+    "总结",
+    "回顾",
+    "使用",
+    "用于",
+    "通过",
+    "完成",
+    "执行",
+    "观察",
+    "识别",
+    "组织",
+    "体验",
+    "结合",
+    "案例",
+    "讲解",
+    "介绍",
+    "巩固",
+    "带领",
+    "帮助",
+    "理解",
+    "掌握",
+    "生活",
+    "行为",
+    "关系",
+    "概念",
+    "结构",
+    "内容",
+    "方法",
+    "作用",
+    "应用",
+    "原理",
+    "基础",
+    "视觉",
+    "简单",
+    "流程图",
+    "示意图",
+    "图示",
+    "幻灯片",
+    "图片",
+    "页",
+    "在",
+    "中",
+    "的",
+    "并",
 )
 
 
@@ -285,7 +346,7 @@ def _reject_ungrounded_slide_content(
         for value in values
         if not _is_structural_slide_point(value)
         and any(
-            not _is_grounded(candidate, allowed_values)
+            not _is_grounded_slide_knowledge(candidate, allowed_values)
             for candidate in _slide_knowledge_candidates(value)
             if not _is_structural_slide_point(candidate)
         )
@@ -313,6 +374,27 @@ def _slide_knowledge_candidates(value: str) -> list[str]:
         if candidate:
             candidates.append(candidate)
     return candidates
+
+
+def _is_grounded_slide_knowledge(candidate: str, allowed_values: list[str]) -> bool:
+    normalized = _normalize(candidate)
+    if not normalized:
+        return False
+
+    remainder = normalized
+    matched_concept = False
+    for concept in sorted((_normalize(value) for value in allowed_values), key=len, reverse=True):
+        if concept and concept in remainder:
+            remainder = remainder.replace(concept, "")
+            matched_concept = True
+
+    if not matched_concept:
+        return False
+
+    remainder = re.sub(r"[0-9一二三四五六七八九十]+", "", remainder)
+    for term in sorted(SLIDE_CONTEXTUAL_TERMS, key=len, reverse=True):
+        remainder = remainder.replace(_normalize(term), "")
+    return not remainder
 
 
 def _require_coverage(
