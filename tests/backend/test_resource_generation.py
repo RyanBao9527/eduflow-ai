@@ -363,6 +363,23 @@ def test_rejects_resource_with_ungrounded_key_points(monkeypatch: Any) -> None:
     assert len(provider.requests) == 2
 
 
+def test_retry_prompt_includes_consistency_failure_type(monkeypatch: Any) -> None:
+    invalid = make_slide_outline()
+    invalid["content"]["slides"][0]["keyPoints"] = ["神经网络"]
+    provider = FakeProvider(
+        [
+            json.dumps(invalid, ensure_ascii=False),
+            json.dumps(make_slide_outline(), ensure_ascii=False),
+        ]
+    )
+
+    response = post_with_provider(monkeypatch, provider, make_request("slide_outline"))
+
+    assert response.status_code == 200
+    assert response.json()["generation"]["attempts"] == 2
+    assert "上次失败类型：extra concepts" in provider.requests[1].user_prompt
+
+
 def test_error_response_does_not_expose_secrets_or_prompt(monkeypatch: Any) -> None:
     secret = "sk-secret-key RAW_SYSTEM_PROMPT"
     provider = FakeProvider([LLMAuthenticationError(secret)])
