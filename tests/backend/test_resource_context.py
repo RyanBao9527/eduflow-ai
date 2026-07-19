@@ -295,6 +295,57 @@ def test_accepts_teaching_actions_with_a_grounded_concept(value: str) -> None:
     validate_resource_consistency(resource, context)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("overview", "观察循环运行结果"),
+        ("title", "讨论循环执行过程"),
+        ("keyPoints", "展示代码运行效果"),
+        ("speakerNotes", "引导学生思考"),
+    ],
+)
+def test_accepts_natural_teaching_expressions(field: str, value: str) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    if field == "overview":
+        payload["content"]["overview"] = value
+    elif field == "keyPoints":
+        payload["content"]["slides"][0][field] = [value]
+    else:
+        payload["content"]["slides"][0][field] = value
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("keyPoints", "循环神经网络"),
+        ("purpose", "循环人工智能算法"),
+    ],
+)
+def test_rejects_explicit_unknown_knowledge_after_teaching_filter(
+    field: str,
+    value: str,
+) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    if field == "keyPoints":
+        payload["content"]["slides"][0][field] = [value]
+    else:
+        payload["content"]["slides"][0][field] = value
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+
+    assert exc_info.value.failure_type == "extra concepts"
+    assert exc_info.value.field.startswith("content.slides.S01")
+
+
 def test_rejects_teaching_action_with_embedded_extra_knowledge() -> None:
     request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
     context = build_resource_context(request)

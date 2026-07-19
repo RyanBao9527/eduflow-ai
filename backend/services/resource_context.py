@@ -114,6 +114,30 @@ SLIDE_TEACHING_ACTION_TERMS = (
     "巩固",
     "应用",
 )
+TEACHING_EXPRESSION_TERMS = (
+    "讨论",
+    "思考",
+    "观察",
+    "展示",
+    "演示",
+    "尝试",
+    "体验",
+    "比较",
+    "分析",
+    "练习",
+    "回答",
+    "交流",
+    "分享",
+    "总结",
+    "回顾",
+    "发现",
+    "探索",
+    "运行",
+    "查看结果",
+    "测试",
+    "修改",
+    "完成任务",
+)
 SLIDE_CONTEXTUAL_TERMS = (
     "重复执行",
     "生活案例",
@@ -157,6 +181,10 @@ SLIDE_CONTEXTUAL_TERMS = (
     "基础",
     "视觉",
     "简单",
+    "代码",
+    "过程",
+    "结果",
+    "效果",
     "流程图",
     "示意图",
     "图示",
@@ -171,9 +199,16 @@ SLIDE_CONTEXTUAL_TERMS = (
 
 
 class ResourceConsistencyError(ValueError):
-    def __init__(self, failure_type: str, message: str) -> None:
+    def __init__(
+        self,
+        failure_type: str,
+        message: str,
+        *,
+        field: str = "resource",
+    ) -> None:
         super().__init__(message)
         self.failure_type = failure_type
+        self.field = field
 
 
 def build_resource_context(request: ResourceGenerateRequest) -> dict[str, Any]:
@@ -306,18 +341,38 @@ def validate_resource_consistency(
         )
         _require_coverage("key concepts", allowed_concepts, generated_concepts)
     elif isinstance(resource, GeneratedSlideOutlineResource):
-        slide_content_text = [resource.content.overview]
+        strong_slide_fields = [("content.overview", resource.content.overview)]
+        weak_slide_fields: list[tuple[str, str]] = []
         for slide in resource.content.slides:
-            slide_content_text.extend(
-                [
-                    slide.title,
-                    slide.purpose,
-                    *slide.key_points,
-                    slide.visual_suggestion,
-                    slide.speaker_notes,
-                ]
+            field_prefix = f"content.slides.{slide.slide_id}"
+            strong_slide_fields.append((f"{field_prefix}.title", slide.title))
+            strong_slide_fields.extend(
+                (f"{field_prefix}.keyPoints[{index}]", key_point)
+                for index, key_point in enumerate(slide.key_points)
             )
-        _reject_ungrounded_slide_content(slide_content_text, allowed_concepts)
+            weak_slide_fields.extend(
+                (
+                    (f"{field_prefix}.purpose", slide.purpose),
+                    (
+                        f"{field_prefix}.visualSuggestion",
+                        slide.visual_suggestion,
+                    ),
+                    (f"{field_prefix}.speakerNotes", slide.speaker_notes),
+                )
+            )
+        _reject_ungrounded_slide_content(
+            strong_slide_fields,
+            allowed_concepts,
+            strict=True,
+        )
+        _reject_ungrounded_slide_content(
+            weak_slide_fields,
+            allowed_concepts,
+            strict=False,
+        )
+        slide_content_text = [
+            value for _, value in (*strong_slide_fields, *weak_slide_fields)
+        ]
         _require_coverage(
             "learning objectives",
             lesson_model["lessonObjectives"],
@@ -341,28 +396,36 @@ def _reject_ungrounded(values: list[str], allowed_values: list[str]) -> None:
         raise ResourceConsistencyError(
             "extra concepts",
             "Generated resource contains key points outside the canonical lesson context",
+            field="content.keyPoints",
         )
 
 
 def _reject_ungrounded_slide_content(
-    values: list[str],
+    fields: list[tuple[str, str]],
     allowed_values: list[str],
+    *,
+    strict: bool,
 ) -> None:
-    ungrounded = [
-        value
-        for value in values
-        if not _is_structural_slide_point(value)
-        and any(
-            not _is_grounded_slide_knowledge(candidate, allowed_values)
+    for field, value in fields:
+        if _is_structural_slide_point(value):
+            continue
+        candidates = [
+            candidate
             for candidate in _slide_knowledge_candidates(value)
             if not _is_structural_slide_point(candidate)
+        ]
+        has_ungrounded_content = any(
+            not _is_grounded_slide_knowledge(candidate, allowed_values)
+            if strict
+            else _has_explicit_ungrounded_slide_knowledge(candidate, allowed_values)
+            for candidate in candidates
         )
-    ]
-    if ungrounded:
-        raise ResourceConsistencyError(
-            "extra concepts",
-            "Generated slide outline contains content outside the canonical lesson context",
-        )
+        if has_ungrounded_content:
+            raise ResourceConsistencyError(
+                "extra concepts",
+                "Generated slide outline contains content outside the canonical lesson context",
+                field=field,
+            )
 
 
 def _slide_knowledge_candidates(value: str) -> list[str]:
@@ -384,29 +447,63 @@ def _slide_knowledge_candidates(value: str) -> list[str]:
 
 
 def _is_grounded_slide_knowledge(candidate: str, allowed_values: list[str]) -> bool:
+    _, remainder = _slide_knowledge_remainder(candidate, allowed_values)
+    return not remainder
+
+
+def _has_explicit_ungrounded_slide_knowledge(
+    candidate: str,
+    allowed_values: list[str],
+) -> bool:
+    matched_concept, remainder = _slide_knowledge_remainder(candidate, allowed_values)
+    if not remainder:
+        return False
+    if matched_concept:
+        return True
+    explicit_knowledge_markers = (
+        "人工智能",
+        "机器学习",
+        "神经网络",
+        "数据库",
+        "数据结构",
+        "编程语言",
+        "算法",
+        "模型",
+        "网络",
+        "函数",
+    )
+    normalized_candidate = _normalize(candidate)
+    return any(marker in normalized_candidate for marker in explicit_knowledge_markers)
+
+
+def _slide_knowledge_remainder(
+    candidate: str,
+    allowed_values: list[str],
+) -> tuple[bool, str]:
     normalized = _normalize(candidate)
     if not normalized:
-        return False
+        return False, ""
 
     remainder = normalized
+    non_knowledge_terms = (
+        *SLIDE_STRUCTURAL_TERMS,
+        *SLIDE_STRUCTURAL_MODIFIERS,
+        *SLIDE_TEACHING_ACTION_TERMS,
+        *TEACHING_EXPRESSION_TERMS,
+        *SLIDE_CONTEXTUAL_TERMS,
+    )
+    for term in sorted(non_knowledge_terms, key=len, reverse=True):
+        remainder = remainder.replace(_normalize(term), "")
+
     matched_concept = False
-    for concept in sorted((_normalize(value) for value in allowed_values), key=len, reverse=True):
+    normalized_concepts = (_normalize(value) for value in allowed_values)
+    for concept in sorted(normalized_concepts, key=len, reverse=True):
         if concept and concept in remainder:
             remainder = remainder.replace(concept, "")
             matched_concept = True
 
-    if not matched_concept:
-        return False
-
     remainder = re.sub(r"[0-9一二三四五六七八九十]+", "", remainder)
-    structural_terms = (*SLIDE_STRUCTURAL_TERMS, *SLIDE_STRUCTURAL_MODIFIERS)
-    for term in sorted(structural_terms, key=len, reverse=True):
-        remainder = remainder.replace(_normalize(term), "")
-    for term in sorted(SLIDE_TEACHING_ACTION_TERMS, key=len, reverse=True):
-        remainder = remainder.replace(_normalize(term), "")
-    for term in sorted(SLIDE_CONTEXTUAL_TERMS, key=len, reverse=True):
-        remainder = remainder.replace(_normalize(term), "")
-    return not remainder
+    return matched_concept, remainder
 
 
 def _require_coverage(
@@ -429,6 +526,7 @@ def _require_coverage(
         raise ResourceConsistencyError(
             failure_type,
             f"Generated resource does not cover canonical {label}",
+            field=f"coverage.{label.replace(' ', '_')}",
         )
 
 
