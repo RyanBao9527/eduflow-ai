@@ -12,13 +12,13 @@ export interface CourseTitleSuggestion {
 
 export type SubjectOrigin = "user" | "draft" | "default" | "unset";
 
-export const COURSE_TOPIC_TAGS = [
-  "Python编程",
-  "人工智能应用",
-  "少儿编程",
-  "数据分析",
-  "机器学习",
+export const COURSE_TOPIC_GROUPS = [
+  { label: "热门方向", tags: ["Python编程", "人工智能应用"] },
+  { label: "学科与技能", tags: ["少儿编程", "数据分析", "机器学习"] },
+  { label: "企业培训", tags: ["企业培训"] },
 ] as const;
+
+export const COURSE_TOPIC_TAGS = COURSE_TOPIC_GROUPS.flatMap((group) => group.tags);
 
 interface CourseRecommendationInput {
   courseTitle?: string;

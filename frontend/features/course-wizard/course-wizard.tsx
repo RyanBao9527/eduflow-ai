@@ -51,7 +51,10 @@ import {
 import { FormErrorSummary } from "@/features/course-wizard/form-error-summary";
 import { PlanningStyleStep } from "@/features/course-wizard/planning-style-step";
 import { ResourceSelectionStep } from "@/features/course-wizard/resource-selection-step";
-import { TargetLearnersStep } from "@/features/course-wizard/target-learners-step";
+import {
+  TargetLearnersStep,
+  type LearnerFieldOrigin,
+} from "@/features/course-wizard/target-learners-step";
 import { WizardNavigation } from "@/features/course-wizard/wizard-navigation";
 import { WizardStepIndicator } from "@/features/course-wizard/wizard-step-indicator";
 import { migrateLegacyCourseProject } from "@/features/course-workspace/course-project-migration";
@@ -64,7 +67,6 @@ import {
 } from "@/features/course-workspace/course-project-storage";
 
 const stepComponents = [
-  TargetLearnersStep,
   PlanningStyleStep,
   ResourceSelectionStep,
 ] as const;
@@ -89,6 +91,7 @@ export function CourseWizard() {
   const [resultNotice, setResultNotice] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [subjectOrigin, setSubjectOriginState] = useState<SubjectOrigin>("unset");
+  const [ageOrGradeOrigin, setAgeOrGradeOrigin] = useState<LearnerFieldOrigin>("unset");
   const inFlightRef = useRef(false);
   const resourceDefaultsAppliedRef = useRef(false);
   const subjectHydrationCheckedRef = useRef(false);
@@ -139,6 +142,7 @@ export function CourseWizard() {
         ...values,
       } as CourseBriefFormValues);
       subjectOriginRef.current = values.subject?.trim() ? "draft" : "unset";
+      setAgeOrGradeOrigin(values.ageOrGrade?.trim() ? "draft" : "unset");
       subjectHydrationCheckedRef.current = false;
       setCurrentStep(project?.wizardStep ?? 1);
       if (project) {
@@ -444,12 +448,13 @@ export function CourseWizard() {
     resourceDefaultsAppliedRef.current = false;
     subjectHydrationCheckedRef.current = false;
     updateSubjectOrigin("unset");
+    setAgeOrGradeOrigin("unset");
     window.history.replaceState(null, "", "/courses/new");
     setDraftState("idle");
   };
 
-  const StepComponent = currentStep >= 2 && currentStep <= 4
-    ? stepComponents[currentStep - 2]
+  const StepComponent = currentStep >= 3 && currentStep <= 4
+    ? stepComponents[currentStep - 3]
     : null;
   const stepMeta = WIZARD_STEPS[currentStep - 1];
   const displayedErrors = stepErrorMessages.length > 0 ? stepErrorMessages : currentStepErrors;
@@ -536,6 +541,11 @@ export function CourseWizard() {
               <BasicInfoStep
                 subjectOrigin={subjectOrigin}
                 onSubjectOriginChange={updateSubjectOrigin}
+              />
+            ) : currentStep === 2 ? (
+              <TargetLearnersStep
+                ageOrGradeOrigin={ageOrGradeOrigin}
+                onAgeOrGradeOriginChange={setAgeOrGradeOrigin}
               />
             ) : StepComponent ? (
               <StepComponent />

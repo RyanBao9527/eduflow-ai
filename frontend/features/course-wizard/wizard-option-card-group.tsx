@@ -18,6 +18,7 @@ export function WizardOptionCardGroup({
   onChange,
   customPlaceholder,
   allowCustom = true,
+  customOptionLabel = "自定义",
 }: {
   label: string;
   description: string;
@@ -26,6 +27,7 @@ export function WizardOptionCardGroup({
   onChange: (value: string) => void;
   customPlaceholder?: string;
   allowCustom?: boolean;
+  customOptionLabel?: string;
 }) {
   const hasCustomValue = allowCustom
     && Boolean(value)
@@ -73,7 +75,7 @@ export function WizardOptionCardGroup({
               customSelected && "border-primary/45 bg-[#f2f5ff] text-primary shadow-sm",
             )}
           >
-            自定义
+            {customOptionLabel}
           </button>
         )}
       </div>
@@ -83,7 +85,7 @@ export function WizardOptionCardGroup({
           value={hasCustomValue ? value : ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={customPlaceholder ?? `请输入${label}`}
-          aria-label={`${label}自定义内容`}
+          aria-label={`${label}${customOptionLabel}内容`}
           autoComplete="off"
         />
       )}

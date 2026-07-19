@@ -24,7 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AiRecommendationPanel } from "@/features/course-wizard/ai-recommendation-panel";
 import {
-  COURSE_TOPIC_TAGS,
+  COURSE_TOPIC_GROUPS,
   getCourseTitleSuggestions,
   getDefaultCourseDescription,
   getSubjectRecommendation,
@@ -45,16 +45,17 @@ export function BasicInfoStep({
   const form = useFormContext<CourseBriefFormValues>();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
-  const [courseTitle, topic] = useWatch({
+  const [courseTitle, topic, description] = useWatch({
     control: form.control,
-    name: ["courseTitle", "topic"],
+    name: ["courseTitle", "topic", "description"],
   });
+  const [descriptionOpen, setDescriptionOpen] = useState(Boolean(description?.trim()));
   const titleSuggestions = getCourseTitleSuggestions(topic);
   const hasSettingsError = Boolean(
     form.formState.errors.teachingScenario ||
-      form.formState.errors.description ||
       form.formState.errors.subject,
   );
+  const hasDescriptionError = Boolean(form.formState.errors.description);
   const showLegacyTopicNotice = Boolean(courseTitle?.trim() && !topic?.trim());
 
   const fillSubjectFromTopic = (nextTopic: string) => {
@@ -128,18 +129,30 @@ export function BasicInfoStep({
             </p>
           )}
 
-          <div className="flex flex-wrap gap-2" aria-label="课程主题推荐标签">
-            {COURSE_TOPIC_TAGS.map((tag) => (
-              <Button
-                key={tag}
-                type="button"
-                size="sm"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => applyTopic(tag)}
-              >
-                {tag}
-              </Button>
+          <div className="space-y-3" aria-label="课程主题推荐标签">
+            {COURSE_TOPIC_GROUPS.map((group) => (
+              <div key={group.label}>
+                <p
+                  className="text-xs font-medium text-muted-foreground"
+                  aria-label={`主题分组：${group.label}`}
+                >
+                  {group.label}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {group.tags.map((tag) => (
+                    <Button
+                      key={tag}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => applyTopic(tag)}
+                    >
+                      {tag}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -153,7 +166,7 @@ export function BasicInfoStep({
                 课程名称
               </h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                展示给学生或客户的课程标题，可稍后补充。
+                展示给学生或客户的课程标题，可稍后填写；创建 AI 课程前需填写。
               </p>
             </div>
             <Button
@@ -202,17 +215,19 @@ export function BasicInfoStep({
         </div>
       </section>
 
-      <section className={cardClassName} aria-label="课程简介信息">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-base font-bold text-[#273149]">
-                课程简介
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                可补充课程背景、希望解决的问题或已有素材。
-              </p>
-            </div>
+      <details
+        className={cardClassName}
+        open={descriptionOpen || hasDescriptionError}
+        onToggle={(event) => setDescriptionOpen(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
+          <span className="text-base font-bold text-[#273149]">课程简介（可选）</span>
+          <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+            可补充课程背景、希望解决的问题或已有素材。
+          </span>
+        </summary>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="flex justify-end">
             <Button
               type="button"
               size="sm"
@@ -243,7 +258,7 @@ export function BasicInfoStep({
             )}
           />
         </div>
-      </section>
+      </details>
 
       <details
         className="group rounded-xl border bg-muted/25"
@@ -307,6 +322,10 @@ export function BasicInfoStep({
           />
         </div>
       </details>
+
+      <p className="rounded-xl bg-muted/55 px-4 py-3 text-sm leading-6 text-muted-foreground">
+        下一步将选择学习者画像，系统会据此组织课程难度和课时规划。
+      </p>
     </div>
   );
 }

@@ -26,7 +26,7 @@ export const TEACHING_MODE_OPTIONS = [
 ] as const;
 
 export const LEARNER_TYPE_OPTIONS = [
-  { value: "小学生", label: "小学生" },
+  { value: "K12学生", label: "K12学生" },
   { value: "大学生", label: "大学生" },
   { value: "教师", label: "教师" },
   { value: "企业员工", label: "企业员工" },
@@ -37,7 +37,12 @@ export const EDUCATION_STAGE_OPTIONS = [
   { value: "小学", label: "小学" },
   { value: "初中", label: "初中" },
   { value: "高中", label: "高中" },
+  { value: "大学", label: "大学" },
   { value: "成人", label: "成人" },
+] as const;
+
+export const ADULT_EDUCATION_STAGE_OPTIONS = [
+  { value: "成人", label: "成人（默认）" },
 ] as const;
 
 export const LEARNER_LEVEL_OPTIONS = [
