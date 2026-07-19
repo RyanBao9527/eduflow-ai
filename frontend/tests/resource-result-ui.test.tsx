@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createResourceArtifactVersion,
@@ -19,6 +19,12 @@ import {
   makeSlideOutlineContent,
   resourceGenerationMetadata,
 } from "./resource-artifact-fixtures";
+
+const downloadResourceArtifactMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/features/course-export/export-service", () => ({
+  downloadResourceArtifact: downloadResourceArtifactMock,
+}));
 
 function createGeneratedProject() {
   const draft = createDraftCourseProject(window.localStorage, validCourseBrief);
@@ -93,6 +99,11 @@ function createSlideOutline(projectId: string, lessonId = "L001", overview?: str
 }
 
 describe("Resource Result UI", () => {
+  beforeEach(() => {
+    downloadResourceArtifactMock.mockReset();
+    downloadResourceArtifactMock.mockResolvedValue(undefined);
+  });
+
   it("shows a read-only generated lesson plan with metadata and token usage", async () => {
     const user = userEvent.setup();
     const project = createGeneratedProject();
@@ -107,7 +118,8 @@ describe("Resource Result UI", () => {
     expect(within(result).getByText(/Token：300/)).toBeInTheDocument();
     expect(within(result).getByText("最新版本 · v1")).toBeInTheDocument();
     expect(within(result).queryByRole("textbox")).not.toBeInTheDocument();
-    expect(within(result).queryByRole("button", { name: /下载|导出|分享|发布/ })).not.toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "导出 Word" })).toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "导出 Markdown" })).toBeInTheDocument();
   });
 
   it("shows safe empty states without rendering a result panel", async () => {
@@ -136,6 +148,8 @@ describe("Resource Result UI", () => {
     await user.click(screen.getByRole("button", { name: "查看PPT结构" }));
     const slides = await screen.findByRole("region", { name: "PPT课件结构结果" });
     expect(within(slides).getByText("PPT专属内容")).toBeInTheDocument();
+    expect(within(slides).getByRole("button", { name: "导出 Markdown" })).toBeInTheDocument();
+    expect(within(slides).queryByRole("button", { name: "导出 Word" })).not.toBeInTheDocument();
     expect(within(slides).queryByText("教案专属内容")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "教师教案结果" })).not.toBeInTheDocument();
   });
@@ -174,6 +188,47 @@ describe("Resource Result UI", () => {
     expect(within(result).getByText("历史版本 · v1")).toBeInTheDocument();
     expect(within(result).getByText("第一版教案内容")).toBeInTheDocument();
     expect(within(result).queryByText("第二版教案内容")).not.toBeInTheDocument();
+
+    await user.click(within(result).getByRole("button", { name: "导出 Markdown" }));
+    await waitFor(() => expect(downloadResourceArtifactMock).toHaveBeenCalledTimes(1));
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[0]).toMatchObject({
+      resourceType: "lesson_plan",
+      version: 1,
+      status: "superseded",
+    });
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[1]).toBe("markdown");
+  });
+
+  it("exports the current ready lesson plan with the requested format", async () => {
+    const user = userEvent.setup();
+    const project = createGeneratedProject();
+    createLessonPlan(project.id);
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
+
+    await user.click(await screen.findByRole("button", { name: "查看教案" }));
+    await user.click(screen.getByRole("button", { name: "导出 Word" }));
+
+    await waitFor(() => expect(downloadResourceArtifactMock).toHaveBeenCalledTimes(1));
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[0]).toMatchObject({
+      resourceType: "lesson_plan",
+      version: 1,
+      status: "ready",
+    });
+    expect(downloadResourceArtifactMock.mock.calls[0]?.[1]).toBe("docx");
+  });
+
+  it("shows a safe error when a resource export fails", async () => {
+    const user = userEvent.setup();
+    const project = createGeneratedProject();
+    createSlideOutline(project.id);
+    downloadResourceArtifactMock.mockRejectedValueOnce(new Error("raw export failure"));
+    render(<LessonWorkspace projectId={project.id} lessonId="L001" />);
+
+    await user.click(await screen.findByRole("button", { name: "查看PPT结构" }));
+    await user.click(screen.getByRole("button", { name: "导出 Markdown" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("课程资源导出失败，请重试。");
+    expect(screen.queryByText("raw export failure")).not.toBeInTheDocument();
   });
 
   it("filters a corrupted Artifact without hiding valid resource results", async () => {
