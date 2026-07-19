@@ -8,6 +8,7 @@ import type {
   ResourceType,
   SlideOutlineContent,
 } from "@/features/course-resources/resource-artifact-schema";
+import { ExportPanel } from "@/features/course-export/export-panel";
 
 const resourceLabels: Record<ResourceType, string> = {
   lesson_plan: "教师教案",
@@ -144,23 +145,26 @@ export function ResourceResultPanel({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">只读内容 · {resourceLabels[resourceType]}</p>
         </div>
-        {versions.length > 1 && (
-          <nav aria-label={`${resourceLabels[resourceType]}历史版本`} className="flex flex-wrap items-center gap-1.5">
-            <History className="mr-1 size-4 text-muted-foreground" />
-            {versions.map((artifact) => (
-              <Button
-                key={artifact.resourceId}
-                type="button"
-                size="sm"
-                variant={artifact.resourceId === selected.resourceId ? "default" : "outline"}
-                aria-label={`查看${resourceLabels[resourceType]} v${artifact.version}`}
-                onClick={() => onSelectVersion(artifact.resourceId)}
-              >
-                v{artifact.version}
-              </Button>
-            ))}
-          </nav>
-        )}
+        <div className="flex flex-col items-end gap-3">
+          <ExportPanel key={selected.resourceId} artifact={selected} />
+          {versions.length > 1 && (
+            <nav aria-label={`${resourceLabels[resourceType]}历史版本`} className="flex flex-wrap items-center gap-1.5">
+              <History className="mr-1 size-4 text-muted-foreground" />
+              {versions.map((artifact) => (
+                <Button
+                  key={artifact.resourceId}
+                  type="button"
+                  size="sm"
+                  variant={artifact.resourceId === selected.resourceId ? "default" : "outline"}
+                  aria-label={`查看${resourceLabels[resourceType]} v${artifact.version}`}
+                  onClick={() => onSelectVersion(artifact.resourceId)}
+                >
+                  v{artifact.version}
+                </Button>
+              ))}
+            </nav>
+          )}
+        </div>
       </div>
       <div className="mt-4"><GenerationMetadata artifact={selected} /></div>
       <div className="mt-5 border-t pt-5">
