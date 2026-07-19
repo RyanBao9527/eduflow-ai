@@ -24,6 +24,7 @@ from backend.services.llm.base import (
     StructuredOutputResult,
 )
 from backend.services.resource_context import (
+    ResourceConsistencyError,
     build_resource_context,
     validate_resource_consistency,
 )
@@ -47,6 +48,7 @@ class ResourceGenerationService:
         final_result: StructuredOutputResult | None = None
         resource: GeneratedResource | None = None
         attempts = 0
+        retry_failure_type: str | None = None
 
         for attempt in range(1, 3):
             llm_request = build_structured_output_request(
@@ -55,6 +57,7 @@ class ResourceGenerationService:
                 configured_token_limit=self._settings.llm_max_output_tokens,
                 temperature=self._settings.llm_temperature,
                 retry=attempt == 2,
+                retry_failure_type=retry_failure_type,
             )
             try:
                 result = await self._provider.generate_structured_output(llm_request)
@@ -71,6 +74,11 @@ class ResourceGenerationService:
                 ValidationError,
                 json.JSONDecodeError,
             ) as exc:
+                retry_failure_type = (
+                    exc.failure_type
+                    if isinstance(exc, ResourceConsistencyError)
+                    else "schema mismatch"
+                )
                 if attempt == 1:
                     continue
                 raise ResourceGenerationInvalidOutputError from exc

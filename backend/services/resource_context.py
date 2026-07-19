@@ -11,9 +11,45 @@ from backend.models.resource_generation import (
 
 RESOURCE_CONTEXT_VERSION = "1.0"
 
+SLIDE_STRUCTURAL_TERMS = (
+    "学习目标",
+    "课堂任务",
+    "练习",
+    "实践",
+    "总结",
+    "回顾",
+    "步骤",
+    "要求",
+)
+
+SLIDE_STRUCTURAL_MODIFIERS = (
+    "本课",
+    "课程",
+    "课堂",
+    "教学",
+    "活动",
+    "内容",
+    "说明",
+    "安排",
+    "操作",
+    "完成",
+    "学生",
+    "教师",
+    "阶段",
+    "环节",
+    "任务",
+    "目标",
+    "与",
+    "和",
+    "及",
+    "的",
+)
+
 
 class ResourceConsistencyError(ValueError):
-    pass
+    def __init__(self, failure_type: str, message: str) -> None:
+        super().__init__(message)
+        self.failure_type = failure_type
 
 
 def build_resource_context(request: ResourceGenerateRequest) -> dict[str, Any]:
@@ -138,29 +174,47 @@ def validate_resource_consistency(
             )
             for stage in resource.content.stages
         ]
+        _reject_ungrounded(generated_concepts, allowed_concepts)
+        _require_coverage(
+            "learning objectives",
+            lesson_model["lessonObjectives"],
+            objective_text,
+        )
+        _require_coverage("key concepts", allowed_concepts, generated_concepts)
     elif isinstance(resource, GeneratedSlideOutlineResource):
-        generated_concepts = [
+        slide_key_points = [
             point
             for slide in resource.content.slides
             for point in slide.key_points
         ]
-        objective_text = [
+        slide_content = [resource.content.overview] + [
             " ".join(
-                [slide.title, slide.purpose, slide.speaker_notes]
+                [
+                    slide.title,
+                    slide.purpose,
+                    *slide.key_points,
+                    slide.speaker_notes,
+                ]
             )
             for slide in resource.content.slides
         ]
-        stage_text = objective_text
+        allowed_slide_content = [
+            *lesson_model["keyConcepts"],
+            *lesson_model["lessonObjectives"],
+            *lesson_model["teachingFlow"],
+            *lesson_model["activities"],
+            *lesson_model["assessmentPoints"],
+        ]
+        _reject_ungrounded_slide_points(slide_key_points, allowed_slide_content)
+        _require_coverage(
+            "learning objectives",
+            lesson_model["lessonObjectives"],
+            slide_content,
+        )
+        _require_coverage("key concepts", allowed_concepts, slide_content)
+        stage_text = slide_content
     else:  # pragma: no cover - GeneratedResource currently has two variants
         return
-
-    _reject_ungrounded(generated_concepts, allowed_concepts)
-    _require_coverage(
-        "learning objectives",
-        lesson_model["lessonObjectives"],
-        objective_text,
-    )
-    _require_coverage("key concepts", lesson_model["keyConcepts"], generated_concepts)
 
     if lesson_model["hasExplicitLessonDetail"]:
         _require_coverage("teaching flow", lesson_model["teachingFlow"], stage_text)
@@ -173,7 +227,27 @@ def _reject_ungrounded(values: list[str], allowed_values: list[str]) -> None:
     ]
     if ungrounded:
         raise ResourceConsistencyError(
-            "Generated resource contains key points outside the canonical lesson context"
+            "extra concepts",
+            "Generated resource contains key points outside the canonical lesson context",
+        )
+
+
+def _reject_ungrounded_slide_points(
+    values: list[str],
+    allowed_values: list[str],
+) -> None:
+    ungrounded = [
+        value
+        for value in values
+        if not _is_structural_slide_point(value)
+        and not any(
+            _is_semantically_related(allowed, value) for allowed in allowed_values
+        )
+    ]
+    if ungrounded:
+        raise ResourceConsistencyError(
+            "extra concepts",
+            "Generated slide outline contains content outside the canonical lesson context",
         )
 
 
@@ -188,9 +262,30 @@ def _require_coverage(
         if not any(_is_semantically_related(expected, value) for value in generated_values)
     ]
     if missing:
+        failure_type = {
+            "learning objectives": "objective mismatch",
+            "key concepts": "missing concepts",
+            "teaching flow": "flow mismatch",
+            "activities": "flow mismatch",
+        }.get(label, "consistency mismatch")
         raise ResourceConsistencyError(
-            f"Generated resource does not cover canonical {label}"
+            failure_type,
+            f"Generated resource does not cover canonical {label}",
         )
+
+
+def _is_structural_slide_point(value: str) -> bool:
+    remainder = _normalize(value)
+    if not remainder:
+        return False
+    terms = sorted(
+        (*SLIDE_STRUCTURAL_TERMS, *SLIDE_STRUCTURAL_MODIFIERS),
+        key=len,
+        reverse=True,
+    )
+    for term in terms:
+        remainder = remainder.replace(_normalize(term), "")
+    return not remainder
 
 
 def _is_grounded(value: str, allowed_values: list[str]) -> bool:

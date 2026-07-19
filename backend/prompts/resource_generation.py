@@ -35,6 +35,7 @@ def build_structured_output_request(
     configured_token_limit: int,
     temperature: float,
     retry: bool = False,
+    retry_failure_type: str | None = None,
 ) -> StructuredOutputRequest:
     resource_model = (
         GeneratedLessonPlanResource
@@ -49,11 +50,16 @@ def build_structured_output_request(
         if request.resource_type == "lesson_plan"
         else (
             "生成 6 至 15 页幻灯片内容结构；slideId 必须从 S01 开始连续编号；"
-            "每页只包含标题、用途、最多 5 个要点、视觉建议和简短讲解提示。"
+            "每页只包含标题、用途、最多 5 个要点、视觉建议和简短讲解提示；"
+            "keyPoints 可以包含教学结构、活动说明和练习指导，包括学习目标、课堂任务、"
+            "练习、实践、总结、回顾、步骤和要求；"
+            "不要求每个 keyPoint 都是核心知识点，但整份 PPT 必须覆盖 lessonModel.keyConcepts 中的全部核心知识点。"
         )
     )
     retry_rule = (
-        "这是格式修复重试。进一步缩短文字字段并严格修复 JSON、ID、数量和结构错误。"
+        "这是格式修复重试。"
+        f"上次失败类型：{retry_failure_type or 'schema mismatch'}。"
+        "请针对该失败类型修复内容，并严格修复 JSON、ID、数量和结构错误。"
         if retry
         else "这是首次生成。"
     )
