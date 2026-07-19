@@ -4,9 +4,9 @@
 
 ### AI-powered course development platform
 
-将课程想法转化为结构化 AI Course Blueprint，并通过 Course Workspace 与 Lesson Workspace 持续完成课程设计和单课备课。
+将课程想法转化为结构化 AI Course Blueprint，并通过 Course Workspace 与 Lesson Workspace 持续完成课程设计、单课备课和教学资产导出。
 
-[![Version](https://img.shields.io/badge/version-v0.6.2-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.6.2)
+[![Version](https://img.shields.io/badge/version-v0.7.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.7.0)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> **Current Version: v0.6.2 — Course Creation UX Refinement.** 课程创建向导现采用主题优先的信息架构，并通过清晰的学员画像帮助教师更快完成课程需求填写。
+> **Current Version: v0.7.0 — AI Course Export MVP.** 教师可以把当前查看的教案版本导出为 Word 或 Markdown，并把 PPT 内容结构导出为 Markdown。
 
 ## Product Positioning
 
@@ -37,6 +37,7 @@ AI-assisted Course Wizard
 → Select a Lesson
 → Lesson Workspace
 → Generate and review ResourceArtifact versions
+→ Export the selected version as DOCX or Markdown
 ```
 
 ## Features
@@ -54,6 +55,7 @@ AI-assisted Course Wizard
 | Lesson-level Resource Generation | 为指定课时生成教师教案或 PPT 课件内容结构 |
 | ResourceArtifact | 独立保存资源内容、生成元数据、稳定 UUID 和最近三个版本 |
 | Lesson Resource Preview | 在 Lesson Workspace 只读查看最新资源、生成模型、Token 使用和历史版本 |
+| Local Resource Export | 将当前查看的教师教案导出为 DOCX/Markdown，将 PPT 内容结构导出为 Markdown |
 | Dashboard Management | 展示本地课程项目、状态、更新时间和对应的继续操作入口 |
 | Data-loss Protection | 自动保存、显式 Workspace 保存、未保存离开提醒和存储异常回退 |
 | Engineering Quality | Vitest、Testing Library、Pytest、ESLint 和 Next.js production build |
@@ -141,6 +143,23 @@ ResourceArtifact
 | Tooling | pnpm, Python venv, ESLint, Next.js Webpack development server |
 
 ## Current Version
+
+### v0.7.0 — AI Course Export MVP
+
+v0.7.0 增加独立的浏览器端 Export Layer，让只读 ResourceArtifact 成为可下载、可继续编辑的教学资产。
+
+Highlights:
+
+- Export the currently selected lesson-plan version as Word or Markdown.
+- Export the currently selected slide-outline version as Markdown.
+- Preserve ready and superseded ResourceArtifact versions during export.
+- Generate files locally without a new API, database, or export record.
+
+Not included:
+
+- PPTX or PDF generation.
+- Batch export or cloud storage.
+- Database, authentication, RAG, or Agent capabilities.
 
 ### v0.6.2 — Course Creation UX Refinement
 
@@ -245,9 +264,16 @@ Not included:
 - Learner profile semantics that separate identity, learning stage, and foundation.
 - Adult-stage defaults that preserve manual choices and legacy drafts.
 
+### v0.7.0 — AI Course Export MVP
+
+- Browser-side DOCX and Markdown export for teacher lesson plans.
+- Markdown export for PPT content outlines.
+- Exact export of the ResourceArtifact version currently selected in Lesson Workspace.
+- No changes to CourseProject, ResourceArtifact, backend APIs, prompts, or LLM providers.
+
 ### Next
 
-- **Export Center:** 集中管理和导出课程资源。
+- **Advanced Export Formats:** PPTX、PDF 和批量导出能力。
 - **Knowledge Base / RAG:** 知识检索、来源约束和引用增强。
 
 ## Local Development
