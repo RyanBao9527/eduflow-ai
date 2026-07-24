@@ -322,6 +322,64 @@ def test_accepts_natural_teaching_expressions(field: str, value: str) -> None:
 @pytest.mark.parametrize(
     ("field", "value"),
     [
+        ("speakerNotes", "通过循环培养计算思维"),
+        ("purpose", "帮助学生理解循环概念"),
+    ],
+)
+def test_accepts_learning_outcome_language_in_weak_fields(
+    field: str,
+    value: str,
+) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0][field] = value
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    validate_resource_consistency(resource, context)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("purpose", "介绍区块链原理"),
+        ("speakerNotes", "讲解量子计算基础"),
+    ],
+)
+def test_rejects_unknown_knowledge_in_weak_fields(
+    field: str,
+    value: str,
+) -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0][field] = value
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+
+    assert exc_info.value.failure_type == "extra concepts"
+    assert exc_info.value.field == f"content.slides.S01.{field}"
+
+
+def test_learning_outcome_terms_do_not_relax_strong_fields() -> None:
+    request = ResourceGenerateRequest.model_validate(make_request("slide_outline"))
+    context = build_resource_context(request)
+    payload = make_slide_outline()
+    payload["content"]["slides"][0]["keyPoints"] = ["循环培养计算思维"]
+    resource = GeneratedSlideOutlineResource.model_validate(payload)
+
+    with pytest.raises(ResourceConsistencyError) as exc_info:
+        validate_resource_consistency(resource, context)
+
+    assert exc_info.value.failure_type == "extra concepts"
+    assert exc_info.value.field == "content.slides.S01.keyPoints[0]"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
         ("keyPoints", "循环神经网络"),
         ("purpose", "循环人工智能算法"),
     ],

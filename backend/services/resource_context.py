@@ -138,6 +138,18 @@ TEACHING_EXPRESSION_TERMS = (
     "修改",
     "完成任务",
 )
+LEARNING_OUTCOME_TERMS = (
+    "计算思维",
+    "培养",
+    "提升",
+    "提高",
+    "训练",
+    "能力",
+    "思维",
+    "意识",
+    "习惯",
+    "素养",
+)
 SLIDE_CONTEXTUAL_TERMS = (
     "重复执行",
     "生活案例",
@@ -415,9 +427,11 @@ def _reject_ungrounded_slide_content(
             if not _is_structural_slide_point(candidate)
         ]
         has_ungrounded_content = any(
-            not _is_grounded_slide_knowledge(candidate, allowed_values)
-            if strict
-            else _has_explicit_ungrounded_slide_knowledge(candidate, allowed_values)
+            not _is_grounded_slide_knowledge(
+                candidate,
+                allowed_values,
+                allow_learning_outcomes=not strict,
+            )
             for candidate in candidates
         )
         if has_ungrounded_content:
@@ -446,39 +460,25 @@ def _slide_knowledge_candidates(value: str) -> list[str]:
     return candidates
 
 
-def _is_grounded_slide_knowledge(candidate: str, allowed_values: list[str]) -> bool:
-    _, remainder = _slide_knowledge_remainder(candidate, allowed_values)
-    return not remainder
-
-
-def _has_explicit_ungrounded_slide_knowledge(
+def _is_grounded_slide_knowledge(
     candidate: str,
     allowed_values: list[str],
+    *,
+    allow_learning_outcomes: bool = False,
 ) -> bool:
-    matched_concept, remainder = _slide_knowledge_remainder(candidate, allowed_values)
-    if not remainder:
-        return False
-    if matched_concept:
-        return True
-    explicit_knowledge_markers = (
-        "人工智能",
-        "机器学习",
-        "神经网络",
-        "数据库",
-        "数据结构",
-        "编程语言",
-        "算法",
-        "模型",
-        "网络",
-        "函数",
+    _, remainder = _slide_knowledge_remainder(
+        candidate,
+        allowed_values,
+        allow_learning_outcomes=allow_learning_outcomes,
     )
-    normalized_candidate = _normalize(candidate)
-    return any(marker in normalized_candidate for marker in explicit_knowledge_markers)
+    return not remainder
 
 
 def _slide_knowledge_remainder(
     candidate: str,
     allowed_values: list[str],
+    *,
+    allow_learning_outcomes: bool = False,
 ) -> tuple[bool, str]:
     normalized = _normalize(candidate)
     if not normalized:
@@ -492,6 +492,8 @@ def _slide_knowledge_remainder(
         *TEACHING_EXPRESSION_TERMS,
         *SLIDE_CONTEXTUAL_TERMS,
     )
+    if allow_learning_outcomes:
+        non_knowledge_terms = (*non_knowledge_terms, *LEARNING_OUTCOME_TERMS)
     for term in sorted(non_knowledge_terms, key=len, reverse=True):
         remainder = remainder.replace(_normalize(term), "")
 
