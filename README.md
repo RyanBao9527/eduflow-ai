@@ -6,7 +6,7 @@
 
 将课程想法转化为结构化 AI Course Blueprint，并通过 Course Workspace 与 Lesson Workspace 持续完成课程设计、单课备课和教学资产导出。
 
-[![Version](https://img.shields.io/badge/version-v0.7.0-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.7.0)
+[![Version](https://img.shields.io/badge/version-v0.8.3-3157d5)](https://github.com/RyanBao9527/eduflow-ai/tree/v0.8.3)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111827?logo=next.js)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?logo=fastapi)
 ![Status](https://img.shields.io/badge/status-active_development-f59e0b)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> **Current Version: v0.7.0 — AI Course Export MVP.** 教师可以把当前查看的教案版本导出为 Word 或 Markdown，并把 PPT 内容结构导出为 Markdown。
+> **Current Version: v0.8.3 — Resource Validation False Positive Fix.** EduFlow AI 支持课程项目管理、AI PPTX 导出，以及更可靠的 PPT 资源一致性校验。
 
 ## Product Positioning
 
@@ -37,7 +37,7 @@ AI-assisted Course Wizard
 → Select a Lesson
 → Lesson Workspace
 → Generate and review ResourceArtifact versions
-→ Export the selected version as DOCX or Markdown
+→ Export the selected version as DOCX, Markdown or PPTX
 ```
 
 ## Features
@@ -55,7 +55,11 @@ AI-assisted Course Wizard
 | Lesson-level Resource Generation | 为指定课时生成教师教案或 PPT 课件内容结构 |
 | ResourceArtifact | 独立保存资源内容、生成元数据、稳定 UUID 和最近三个版本 |
 | Lesson Resource Preview | 在 Lesson Workspace 只读查看最新资源、生成模型、Token 使用和历史版本 |
-| Local Resource Export | 将当前查看的教师教案导出为 DOCX/Markdown，将 PPT 内容结构导出为 Markdown |
+| AI PPTX Export MVP | 将当前选中的 PPT 内容结构导出为可编辑的 PowerPoint 文件 |
+| Local Resource Export | 将当前查看的教师教案导出为 DOCX/Markdown，将 PPT 内容结构导出为 Markdown/PPTX |
+| Course Project Management | 在 Dashboard 管理、删除和恢复本地课程项目 |
+| AI Resource Consistency Layer | 基于共享 Lesson Context 对教师教案和 PPT 结构进行一致性校验 |
+| Resource Validation False Positive Fix | 在保持 `lesson.keyConcepts` 边界的同时，兼容正常教学表达和学习成果语言 |
 | Dashboard Management | 展示本地课程项目、状态、更新时间和对应的继续操作入口 |
 | Data-loss Protection | 自动保存、显式 Workspace 保存、未保存离开提醒和存储异常回退 |
 | Engineering Quality | Vitest、Testing Library、Pytest、ESLint 和 Next.js production build |
@@ -144,22 +148,45 @@ ResourceArtifact
 
 ## Current Version
 
-### v0.7.0 — AI Course Export MVP
+### v0.8.3 — Resource Validation False Positive Fix
 
-v0.7.0 增加独立的浏览器端 Export Layer，让只读 ResourceArtifact 成为可下载、可继续编辑的教学资产。
+v0.8.3 改进 AI 资源一致性校验，在保持 `lesson.keyConcepts` 为唯一知识边界的同时，减少 PPT 正常教学语言造成的误拒绝。
 
 Highlights:
 
-- Export the currently selected lesson-plan version as Word or Markdown.
-- Export the currently selected slide-outline version as Markdown.
-- Preserve ready and superseded ResourceArtifact versions during export.
-- Generate files locally without a new API, database, or export record.
+- Keep `lesson.keyConcepts` as the only knowledge boundary.
+- Allow normal teaching expressions and learning outcome language in PPT resources.
+- Reject out-of-scope concepts such as blockchain, quantum computing and neural networks.
+- Add safe validation diagnostics without exposing Prompt, API Key or model output.
 
 Not included:
 
-- PPTX or PDF generation.
-- Batch export or cloud storage.
 - Database, authentication, RAG, or Agent capabilities.
+- PDF generation or batch export.
+
+### v0.8.2 — Resource Consistency Improvement
+
+- Full-field PPT resource consistency validation.
+- Shared Lesson Context for objectives, key concepts, teaching flow and activities.
+- Protection against mixed and embedded out-of-scope concepts.
+
+### v0.8.1 — Course Project Management Fix
+
+- Dashboard course project deletion with confirmation.
+- Local project list and statistics update without page refresh.
+- ResourceArtifact data remains independent and protected.
+
+### v0.8.0 — AI PPTX Export MVP
+
+- Export selected `slide_outline` versions as editable `.pptx` files.
+- Lesson-aware cover, content, practice, summary and code slides.
+- Browser-side PPTX generation through the existing Export Layer.
+
+### v0.7.0 — AI Course Export MVP
+
+- Export selected teacher lesson plan versions as DOCX or Markdown.
+- Export selected slide outlines as Markdown.
+- Preserve ResourceArtifact version immutability during export.
 
 ### v0.6.2 — Course Creation UX Refinement
 
@@ -271,9 +298,31 @@ Not included:
 - Exact export of the ResourceArtifact version currently selected in Lesson Workspace.
 - No changes to CourseProject, ResourceArtifact, backend APIs, prompts, or LLM providers.
 
+### v0.8.0 — AI PPTX Export MVP
+
+- Browser-side PPTX export for selected slide outline versions.
+- Fixed teaching-oriented PPT template with cover, content, practice, summary and code fallback slides.
+- No changes to ResourceArtifact, CourseProject or resource generation APIs.
+
+### v0.8.1 — Course Project Management
+
+- Dashboard course project deletion with confirmation.
+- Immediate local list and statistics updates.
+
+### v0.8.2 — Resource Consistency Improvement
+
+- Shared Lesson Context for generated resources.
+- Full-field slide consistency validation and mixed-knowledge protection.
+
+### v0.8.3 — Resource Validation False Positive Fix
+
+- Teaching expression and learning outcome filtering for PPT validation.
+- Weak-field validation remains bounded by `lesson.keyConcepts`.
+- Safe request-level validation diagnostics and improved retry context.
+
 ### Next
 
-- **Advanced Export Formats:** PPTX、PDF 和批量导出能力。
+- **Advanced Export Formats:** PDF 和批量导出能力。
 - **Knowledge Base / RAG:** 知识检索、来源约束和引用增强。
 
 ## Local Development
