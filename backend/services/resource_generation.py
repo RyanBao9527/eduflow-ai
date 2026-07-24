@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import UTC, datetime
 
 from pydantic import ValidationError
@@ -34,6 +35,9 @@ class ResourceGenerationInvalidOutputError(Exception):
     pass
 
 
+logger = logging.getLogger(__name__)
+
+
 class ResourceGenerationService:
     def __init__(self, provider: LLMProvider, settings: Settings) -> None:
         self._provider = provider
@@ -62,6 +66,13 @@ class ResourceGenerationService:
             try:
                 result = await self._provider.generate_structured_output(llm_request)
             except LLMInvalidResponseError as exc:
+                _log_validation_failure(
+                    request_id=request_id,
+                    resource_type=request.resource_type,
+                    failure_type="provider response invalid",
+                    field="response",
+                    attempt=attempt,
+                )
                 if attempt == 1:
                     continue
                 raise ResourceGenerationInvalidOutputError from exc
@@ -74,11 +85,15 @@ class ResourceGenerationService:
                 ValidationError,
                 json.JSONDecodeError,
             ) as exc:
-                retry_failure_type = (
-                    exc.failure_type
-                    if isinstance(exc, ResourceConsistencyError)
-                    else "schema mismatch"
+                failure_type, failure_field = _validation_failure_details(exc)
+                _log_validation_failure(
+                    request_id=request_id,
+                    resource_type=request.resource_type,
+                    failure_type=failure_type,
+                    field=failure_field,
+                    attempt=attempt,
                 )
+                retry_failure_type = f"{failure_type}; field={failure_field}"
                 if attempt == 1:
                     continue
                 raise ResourceGenerationInvalidOutputError from exc
@@ -181,3 +196,46 @@ class ResourceGenerationService:
             + usage.completion_tokens * output_price
         ) / 1_000_000
         return round(cost, 8)
+
+
+def _validation_failure_details(exc: Exception) -> tuple[str, str]:
+    if isinstance(exc, ResourceConsistencyError):
+        return exc.failure_type, exc.field
+    if isinstance(exc, json.JSONDecodeError):
+        return "schema mismatch", "response.json"
+    if isinstance(exc, ValidationError):
+        errors = exc.errors(include_input=False)
+        location = errors[0].get("loc", ()) if errors else ()
+        field = ".".join(str(part) for part in location) or "response.schema"
+        return "schema mismatch", field
+
+    message_to_field = {
+        "LLM output was truncated": "response",
+        "LLM output exceeded the configured byte limit": "response",
+        "Generated resource target does not match the request": "resource.target",
+        "Lesson plan stage durations must match lesson duration": (
+            "content.stages.durationMinutes"
+        ),
+        "Lesson plan stage IDs must be sequential": "content.stages.stageId",
+        "Slide IDs must be sequential": "content.slides.slideId",
+    }
+    return "schema mismatch", message_to_field.get(str(exc), "resource")
+
+
+def _log_validation_failure(
+    *,
+    request_id: str,
+    resource_type: str,
+    failure_type: str,
+    field: str,
+    attempt: int,
+) -> None:
+    logger.warning(
+        "resource_generation_validation_failed "
+        "request_id=%s resource_type=%s failure_type=%s field=%s attempt=%s",
+        request_id,
+        resource_type,
+        failure_type,
+        field,
+        attempt,
+    )

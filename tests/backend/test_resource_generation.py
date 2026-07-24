@@ -363,7 +363,10 @@ def test_rejects_resource_with_ungrounded_key_points(monkeypatch: Any) -> None:
     assert len(provider.requests) == 2
 
 
-def test_retry_prompt_includes_consistency_failure_type(monkeypatch: Any) -> None:
+def test_retry_prompt_includes_consistency_failure_type_and_field(
+    monkeypatch: Any,
+    caplog: Any,
+) -> None:
     invalid = make_slide_outline()
     invalid["content"]["slides"][0]["keyPoints"] = ["神经网络"]
     provider = FakeProvider(
@@ -373,11 +376,23 @@ def test_retry_prompt_includes_consistency_failure_type(monkeypatch: Any) -> Non
         ]
     )
 
-    response = post_with_provider(monkeypatch, provider, make_request("slide_outline"))
+    with caplog.at_level("WARNING", logger="backend.services.resource_generation"):
+        response = post_with_provider(
+            monkeypatch,
+            provider,
+            make_request("slide_outline"),
+        )
 
     assert response.status_code == 200
     assert response.json()["generation"]["attempts"] == 2
     assert "上次失败类型：extra concepts" in provider.requests[1].user_prompt
+    assert "field=content.slides.S01.keyPoints[0]" in provider.requests[1].user_prompt
+    log_text = "\n".join(caplog.messages)
+    assert f"request_id={response.json()['requestId']}" in log_text
+    assert "resource_type=slide_outline" in log_text
+    assert "failure_type=extra concepts" in log_text
+    assert "field=content.slides.S01.keyPoints[0]" in log_text
+    assert "神经网络" not in log_text
 
 
 def test_error_response_does_not_expose_secrets_or_prompt(monkeypatch: Any) -> None:
